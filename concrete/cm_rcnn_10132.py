@@ -2,11 +2,11 @@
 model = dict(
     type='CascadeRCNN',
     num_stages=3,
-    pretrained='open-mmlab://resnext101_64x4d',
+    pretrained='open-mmlab://resnext101_32x4d',
     backbone=dict(
         type='ResNeXt',
         depth=101,
-        groups=64,
+        groups=32,
         base_width=4,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
@@ -223,7 +223,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/cm_rcnn_10164'
+work_dir = './work_dirs/cm_rcnn_10132'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
