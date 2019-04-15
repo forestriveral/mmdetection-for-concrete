@@ -79,7 +79,10 @@ class CocoDataset(CustomDataset):
             if ann.get('ignore', False):
                 continue
             x1, y1, w, h = ann['bbox']
-            if ann['area'] <= 0 or w < 1 or h < 1:
+            if 'area' not in ann.keys():
+                if w < 1 or h < 1:
+                    continue
+            elif ann['area'] <= 0 or w < 1 or h < 1:
                 continue
             bbox = [x1, y1, x1 + w - 1, y1 + h - 1]
             if ann['iscrowd']:
