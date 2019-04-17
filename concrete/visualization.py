@@ -27,7 +27,7 @@ ROOT_DIR = os.path.abspath("../")
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
 
-linestyles = ['-', '--', ':', '-.', '-', '--']
+linestyles = ['-', '--', ':', '-.', '--', '-']
 font = {'family': 'Times New Roman',
         'weight': 'bold',
         'size': 20,
@@ -36,22 +36,58 @@ font_legend = {'family': 'Times New Roman',
                'weight': 'bold',
                'size': 15,
                }
-colors = [(1.0, 0.0, 0.0), (0.0, 0.0, 1.0),
-          (0.0, 1.0, 0.0), (1.0, 0.0, 1.0),
-          (1.0, 1.0, 0.0), (0.0, 0.0, 0.0)]
+colors = [(0.0, 1.0, 1.0), (1.0, 0.0, 1.0),
+          (0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
+          (1.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
 
 
-def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None):
+def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
+                        plot="loss", ap_types=[None, "50", "75"]):
     plt.figure(figsize=figsize)
     plt.subplots()
-    xnum = int(data['iters'] / data['interval']) * data['epochs']
-    plt.plot(np.arange(1, 1 + xnum),
-             np.array(data['loss']), ls='-', c='#CD0000', lw=1.5, label="Training")
-    # plt.plot(data['epoch'], data['val_loss'], ls='--',
-    #          c='#66CD00', lw=1.5, label="Validation")
-    plt.xlim(0, xnum)
-    plt.xlabel('Epochs', font)
-    plt.ylabel('Loss', font)
+    if plot == "loss":
+        xnum = int(data['iters'] / data['interval']) * data['epochs']
+        plt.plot(np.arange(1, 1 + xnum), np.array(data['loss']),
+                 ls='-', c='#CD0000', lw=1.5, label="Train")
+        # plt.plot(data['epoch'], data['val_loss'], ls='--',
+        #          c='#66CD00', lw=1.5, label="Validation")
+        plt.xlim(0, xnum)
+        plt.xlabel('Epochs', font)
+        plt.ylabel('Loss', font)
+
+        plt.legend(loc="upper right", prop=font_legend,
+                   edgecolor='None', frameon=False,
+                   labelspacing=0.2)
+    if plot == "lr":
+        xnum = int(data['iters'] / data['interval']) * data['epochs']
+        plt.plot(np.arange(1, 1 + xnum), np.array(data['lr']),
+                 ls='-', c='#CD0000', lw=1.5)
+        # plt.plot(data['epoch'], data['val_loss'], ls='--',
+        #          c='#66CD00', lw=1.5, label="Validation")
+        plt.xlim(0, xnum)
+        plt.xlabel('Epochs', font)
+        plt.ylabel('Learning rate', font)
+    if plot in ["bbox", "mask"]:
+        labels = [None, "50", "75", "s", "m", "l"]
+        assert set(labels) > set(ap_types), "Invalid evaluation type!"
+        for ap_type in ap_types:
+            aps = []
+            ind = labels.index(ap_type)
+            if not ap_type:
+                ap_type = " ".join([plot, "50-95"])
+            else:
+                ap_type = " ".join([plot, ap_type])
+            # print(ind, data[plot])
+            for i in range(data['epochs']):
+                aps.append(data[plot][ind + i * 6])
+            plt.plot(np.arange(1, 1 + data['epochs']), aps, ls=linestyles.pop(),
+                     c=colors.pop(), lw=1.5, label=ap_type)
+        plt.xlim(0, data['epochs'])
+        plt.xlabel('Epochs', font)
+        plt.ylabel('Mean average precision', font)
+        plt.legend(loc="lower right", prop=font_legend,
+                   edgecolor='None', frameon=False,
+                   labelspacing=0.2)
 
     ax = plt.gca()
     plt.tick_params(labelsize=15)
@@ -61,9 +97,6 @@ def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None):
     # ax.spines['right'].set_color('none')
     # ax.yaxis.grid(True, which='major')
 
-    plt.legend(loc="upper right", prop=font_legend,
-               edgecolor='None', frameon=False,
-               labelspacing=0.2)
     if save:
         assert save_path, "Path to save must be provided!"
         plt.margins(0, 0)

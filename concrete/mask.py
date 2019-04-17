@@ -252,8 +252,8 @@ def single_detect(cfg, model, image, save=None):
                      save=save)
 
 
-config_path = '../configs/cascade_mask_rcnn_x101_64x4d_fpn_1x.py'
-model_path = '../models/cascade_mask_rcnn_x101_64x4d_fpn_1x_20181218-85953a91.pth'
+config_path = '../configs/cascade_mask_rcnn_r50_fpn_1x.py'
+model_path = '../models/cascade_mask_rcnn_r50_fpn_1x_20181123-88b170c9.pth'
 image_path = './images/giraffe.jpg'
 
 
