@@ -21,8 +21,13 @@
       <w>inds</w>
       <w>ious</w>
       <w>iscrowd</w>
+      <w>iters</w>
       <w>keypoints</w>
       <w>levelname</w>
+      <w>linestyles</w>
+      <w>llist</w>
+      <w>lnum</w>
+      <w>matplotlib</w>
       <w>mmcv</w>
       <w>mmdet</w>
       <w>modelzoo</w>
@@ -37,11 +42,14 @@
       <w>segm</w>
       <w>segms</w>
       <w>skimage</w>
+      <w>sklearn</w>
       <w>slurm</w>
       <w>tensorboard</w>
       <w>thrs</w>
+      <w>xnum</w>
       <w>xywh</w>
       <w>yapf</w>
+      <w>yaxis</w>
     </words>
   </dictionary>
 </component>

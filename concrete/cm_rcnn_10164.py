@@ -166,7 +166,7 @@ img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
     imgs_per_gpu=2,
-    workers_per_gpu=1,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/train.json',
@@ -207,23 +207,23 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=300,
+    warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[8, 10])
+    step=[4, 8])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=20,
+    interval=100,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 10
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/cm_rcnn_10164'
+work_dir = './work_dirs/cm_rcnn_10164_1'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
