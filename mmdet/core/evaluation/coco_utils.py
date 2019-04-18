@@ -3,10 +3,12 @@ import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
+import pandas as pd
 from .recall import eval_recalls
 
 
-def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000)):
+def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
+              **kwargs):
     for res_type in result_types:
         assert res_type in [
             'proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'
@@ -25,6 +27,9 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000)):
     assert result_file.endswith('.json')
     coco_dets = coco.loadRes(result_file)
 
+    heads = ['mAP', '50', '75', 's', 'm', 'l']
+    data = {"name": [kwargs["n"]], "params": [kwargs["p"]]}
+
     img_ids = coco.getImgIds()
     for res_type in result_types:
         iou_type = 'bbox' if res_type == 'proposal' else res_type
@@ -36,6 +41,17 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000)):
         cocoEval.evaluate()
         cocoEval.accumulate()
         cocoEval.summarize()
+
+        for i in range(len(heads)):
+            key = '{}_{}'.format(res_type, heads[i])
+            val = float('{:.3f}'.format(cocoEval.stats[i]))
+            if key not in data.keys():
+                data[key] = []
+            data[key].append(val)
+    print(data)
+    data = pd.DataFrame(data)
+
+    return data
 
 
 def fast_eval_recall(results,
