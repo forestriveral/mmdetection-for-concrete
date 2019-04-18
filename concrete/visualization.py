@@ -1,23 +1,20 @@
 
 import os
-import sys
-# import cv2
-# import random
-# import copy
-# import json
-# import colorsys
-# import collections
-import math
 import re
+import sys
+import math
 import string
 import pandas as pd
 import numpy as np
+import mmcv
+from mmdet import datasets
+from mmdet.core import eval_map
 # from scipy import interpolate
 # from interval import Interval
 # from sklearn.metrics import auc
 # from skimage.measure import find_contours
 import matplotlib.pyplot as plt
-# from matplotlib import patches,  lines, rcParams
+from matplotlib import patches,  lines, rcParams
 # from matplotlib.patches import Polygon
 
 
@@ -42,15 +39,16 @@ colors = [(0.0, 1.0, 1.0), (1.0, 0.0, 1.0),
 
 
 def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
-                        plot="loss", ap_types=[None, "50", "75"]):
+                        plot="loss"):
     plt.figure(figsize=figsize)
     plt.subplots()
+    xnum = int(data['iters'] / data['interval']) * data['epochs']
+    x_axis = np.arange(1, 1 + xnum)
     if plot == "loss":
-        xnum = int(data['iters'] / data['interval']) * data['epochs']
-        plt.plot(np.arange(1, 1 + xnum), np.array(data['loss']),
-                 ls='-', c='#CD0000', lw=1.5, label="Train")
-        # plt.plot(data['epoch'], data['val_loss'], ls='--',
-        #          c='#66CD00', lw=1.5, label="Validation")
+        plt.plot(x_axis, np.array(data['loss']),
+                 ls='-', c='#CD0000', lw=2, label="Training")
+        plt.plot(x_axis, np.array(data['val']), ls='--',
+                 c='#66CD00', lw=2, label="Validation")
         plt.xlim(0, xnum)
         plt.xlabel('Epochs', font)
         plt.ylabel('Loss', font)
@@ -59,40 +57,49 @@ def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
                    edgecolor='None', frameon=False,
                    labelspacing=0.2)
     if plot == "lr":
-        xnum = int(data['iters'] / data['interval']) * data['epochs']
-        plt.plot(np.arange(1, 1 + xnum), np.array(data['lr']),
-                 ls='-', c='#CD0000', lw=1.5)
+        plt.plot(x_axis, np.array(data['lr'])*10**3,
+                 ls='-', c='#CD0000', lw=2)
         # plt.plot(data['epoch'], data['val_loss'], ls='--',
         #          c='#66CD00', lw=1.5, label="Validation")
         plt.xlim(0, xnum)
         plt.xlabel('Epochs', font)
-        plt.ylabel('Learning rate', font)
-    if plot in ["bbox", "mask"]:
-        labels = [None, "50", "75", "s", "m", "l"]
-        assert set(labels) > set(ap_types), "Invalid evaluation type!"
-        for ap_type in ap_types:
-            aps = []
-            ind = labels.index(ap_type)
-            if not ap_type:
-                ap_type = " ".join([plot, "50-95"])
-            else:
-                ap_type = " ".join([plot, ap_type])
-            # print(ind, data[plot])
-            for i in range(data['epochs']):
-                aps.append(data[plot][ind + i * 6])
-            plt.plot(np.arange(1, 1 + data['epochs']), aps, ls=linestyles.pop(),
-                     c=colors.pop(), lw=1.5, label=ap_type)
-        plt.xlim(0, data['epochs'])
+        plt.ylabel('Learning rate(×10$^-3$)', font)
+    if plot == "memory":
+        plt.plot(x_axis, np.array(data['memory']) * 10 ** -3,
+                 ls='-', c='#CD0000', lw=2)
+        plt.xlim(0, xnum)
         plt.xlabel('Epochs', font)
-        plt.ylabel('Mean average precision', font)
-        plt.legend(loc="lower right", prop=font_legend,
-                   edgecolor='None', frameon=False,
-                   labelspacing=0.2)
+        plt.ylabel('Using memory(×10$^3$)', font)
+
+    # if plot in ["bbox", "mask"]:
+    #     labels = [None, "50", "75", "s", "m", "l"]
+    #     assert set(labels) > set(ap_types), "Invalid evaluation type!"
+    #     for ap_type in ap_types:
+    #         aps = []
+    #         ind = labels.index(ap_type)
+    #         if not ap_type:
+    #             ap_type = " ".join([plot, "50-95"])
+    #         else:
+    #             ap_type = " ".join([plot, ap_type])
+    #         # print(ind, data[plot])
+    #         for i in range(data['epochs']):
+    #             aps.append(data[plot][ind + i * 6])
+    #         plt.plot(np.arange(1, 1 + data['epochs']), aps, ls=linestyles.pop(),
+    #                  c=colors.pop(), lw=1.5, label=ap_type)
+    #
+    #     plt.xlim(0, data['epochs'])
+    #     plt.xlabel('Epochs', font)
+    #     plt.ylabel('Mean average precision', font)
+    #     plt.legend(loc="lower right", prop=font_legend,
+    #                edgecolor='None', frameon=False,
+    #                labelspacing=0.2)
 
     ax = plt.gca()
     plt.tick_params(labelsize=15)
     labels = ax.get_xticklabels() + ax.get_yticklabels()
     [label.set_fontname('Times New Roman') for label in labels]
+    rcParams['xtick.direction'] = 'out'
+    rcParams['ytick.direction'] = 'out'
     # ax.spines['top'].set_color('none')
     # ax.spines['right'].set_color('none')
     # ax.yaxis.grid(True, which='major')
@@ -118,8 +125,8 @@ def strip_comma(text):
 def read_log(log):
     lnum = 0
     data = {"name": None, "epochs": None, "iters": None,
-            "loss": [], "lr": [], "bbox": [], "mask": [],
-            "memory": [], "interval": []}
+            "loss": [], "lr": [], "val": [], "memory": [],
+            "interval": []}
     with open(log, 'r+') as log_read:
         while True:
             lnum += 1
@@ -140,9 +147,10 @@ def read_log(log):
                     data["interval"], data["iters"] = int(step[3]), int(step[4])
                 iters_per = math.ceil(data["iters"] / data["interval"])
                 # print(llist)
-                if (lnum - 2) % iters_per == 0:
-                    data["bbox"] += llist[22:28]
-                    data["mask"] += llist[-6:]
+                if label == "Epoch(val)":
+                    # data["bbox"] += llist[22:28]
+                    # data["mask"] += llist[-6:]
+                    data["val"].append(float(llist[-1]))
                 else:
                     data["lr"].append(float(strip_comma(llist[8])) / 100000)
                     data["loss"].append(float(llist[-1]))
@@ -150,10 +158,10 @@ def read_log(log):
             # if lnum >= 10:
             # break
 
-    data["bbox"] = [float(strip_comma(x)) / 1000 for x in data["bbox"]]
-    data["mask"] = [float(strip_comma(x)) / 1000 for x in data["mask"]]
-    assert len(data["lr"]) == len(data["loss"]), "Wrong length!"
-    assert len(data["bbox"]) == len(data["mask"]) == 6 * int(data["epochs"])
+    # data["bbox"] = [float(strip_comma(x)) / 1000 for x in data["bbox"]]
+    # data["mask"] = [float(strip_comma(x)) / 1000 for x in data["mask"]]
+    assert len(data["lr"]) == len(data["loss"]) == len(data["memory"]), "Wrong length!"
+    # assert len(data["bbox"]) == len(data["mask"]) == 6 * int(data["epochs"])
     # print("name: ", data["name"])
     # print("epochs: ", data["epochs"])
     # print("iters: ", data["iters"])
@@ -163,4 +171,44 @@ def read_log(log):
     # print("bbox aps: ", data["bbox"], len(data["bbox"]))
     # print("mask aps: ", data["mask"], len(data["mask"]))
     return data
+
+
+def voc_eval(result_file, dataset, iou_thr=0.5):
+    det_results = mmcv.load(result_file)
+    gt_bboxes = []
+    gt_labels = []
+    gt_ignore = []
+    for i in range(len(dataset)):
+        ann = dataset.get_ann_info(i)
+        bboxes = ann['bboxes']
+        labels = ann['labels']
+        if 'bboxes_ignore' in ann:
+            ignore = np.concatenate([
+                np.zeros(bboxes.shape[0], dtype=np.bool),
+                np.ones(ann['bboxes_ignore'].shape[0], dtype=np.bool)
+            ])
+            gt_ignore.append(ignore)
+            bboxes = np.vstack([bboxes, ann['bboxes_ignore']])
+            labels = np.concatenate([labels, ann['labels_ignore']])
+        gt_bboxes.append(bboxes)
+        gt_labels.append(labels)
+    if not gt_ignore:
+        gt_ignore = gt_ignore
+    if hasattr(dataset, 'year') and dataset.year == 2007:
+        dataset_name = 'voc07'
+    else:
+        dataset_name = dataset.CLASSES
+    eval_map(
+        det_results,
+        gt_bboxes,
+        gt_labels,
+        gt_ignore=gt_ignore,
+        scale_ranges=None,
+        iou_thr=iou_thr,
+        dataset=dataset_name,
+        print_summary=True)
+
+
+def plot_pr_curve():
+    pass
 

@@ -8,7 +8,7 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 
 from mmdet.core import (DistOptimizerHook, DistEvalmAPHook,
                         CocoDistEvalRecallHook, CocoDistEvalmAPHook)
-from mmdet.datasets import build_dataloader
+from mmdet.datasets import build_dataloader, get_dataset
 from mmdet.models import RPN
 from .env import get_root_logger
 
@@ -33,7 +33,7 @@ def parse_losses(losses):
     return loss, log_vars
 
 
-def batch_processor(model, data, train_mode):
+def batch_processor(model, data, train_mode, **kwargs):
     losses = model(**data)
     loss, log_vars = parse_losses(losses)
 
@@ -60,10 +60,17 @@ def train_detector(model,
 
 
 def _dist_train(model, dataset, cfg, validate=False):
+    # validation set loader
+    val_dataset = get_dataset(cfg.data.val)
     # prepare data loaders
     data_loaders = [
         build_dataloader(
             dataset,
+            cfg.data.imgs_per_gpu,
+            cfg.data.workers_per_gpu,
+            dist=True),
+        build_dataloader(
+            val_dataset,
             cfg.data.imgs_per_gpu,
             cfg.data.workers_per_gpu,
             dist=True)
@@ -93,7 +100,9 @@ def _dist_train(model, dataset, cfg, validate=False):
         runner.resume(cfg.resume_from)
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
-    runner.run(data_loaders, cfg.workflow, cfg.total_epochs)
+    runner.run(data_loaders, cfg.workflow, cfg.total_epochs,
+               val_interval=cfg.val_interval, log_config=cfg.log_config,
+               val_dataloader=data_loaders[1])
 
 
 def _non_dist_train(model, dataset, cfg, validate=False):

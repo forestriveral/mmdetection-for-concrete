@@ -1,20 +1,25 @@
 <component name="ProjectDictionaryState">
   <dictionary name="forestriveral">
     <words>
+      <w>arange</w>
       <w>argmax</w>
       <w>asctime</w>
       <w>bboxes</w>
+      <w>copypaste</w>
       <w>cuda</w>
       <w>cudnn</w>
       <w>dataloader</w>
       <w>dataset</w>
+      <w>datasets</w>
       <w>datsets</w>
       <w>dets</w>
       <w>dogball</w>
       <w>dset</w>
       <w>dsets</w>
+      <w>evalm</w>
       <w>figsize</w>
       <w>gpus</w>
+      <w>idxs</w>
       <w>imagenet</w>
       <w>imgs</w>
       <w>imread</w>
@@ -32,6 +37,7 @@
       <w>mmdet</w>
       <w>modelzoo</w>
       <w>nccl</w>
+      <w>ndarray</w>
       <w>opencv</w>
       <w>pretrained</w>
       <w>proc</w>
@@ -47,9 +53,12 @@
       <w>tensorboard</w>
       <w>thrs</w>
       <w>xnum</w>
+      <w>xtick</w>
       <w>xywh</w>
+      <w>xyxy</w>
       <w>yapf</w>
       <w>yaxis</w>
+      <w>ytick</w>
     </words>
   </dictionary>
 </component>

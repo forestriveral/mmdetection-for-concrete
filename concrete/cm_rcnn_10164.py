@@ -191,9 +191,9 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/test.json',
-        img_prefix=data_root + 'test/',
-        img_scale=(1024, 1024),
+        ann_file='../data/coco/annotations/test.json',
+        img_prefix='../data/coco/test/',
+        img_scale=(512, 512),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
@@ -205,11 +205,14 @@ optimizer = dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
-    policy='step',
+    policy='Exp',
+    # policy='Inv',
+    # policy='Poly',
+    # policy='Cosine',
     warmup='linear',
-    warmup_iters=500,
+    warmup_iters=300,
     warmup_ratio=1.0 / 3,
-    step=[4, 8])
+    step=[1, 1])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -220,10 +223,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 10
+val_interval = 200
+# val_num_per = 50
+total_epochs = 1
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/cm_rcnn_10164_1'
 load_from = None
 resume_from = None
-workflow = [('train', 1)]
+workflow = [('train', 1), ('val', 1)]
