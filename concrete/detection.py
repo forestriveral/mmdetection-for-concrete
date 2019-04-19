@@ -13,7 +13,8 @@ from mmcv.runner import load_checkpoint
 from mmdet.models import build_detector
 from mmdet.apis import inference_detector
 import pycocotools.mask as maskUtils
-from mmdet.core import tensor2imgs, get_classes
+from mmdet.core import tensor2imgs
+from mmdet.core.evaluation import coco_classes, dataset_aliases
 
 
 def opencv2skimage(src):
@@ -22,6 +23,79 @@ def opencv2skimage(src):
 
 def skimage2opencv(src):
     return cv2.cvtColor(src, cv2.COLOR_RGB2BGR)
+
+
+def plot_image_debug(img):
+    # img = io.imread('d:/dog.jpg')
+    plt.figure()  # 图像窗口名称
+    plt.imshow(img)
+    plt.axis('off')  # 关掉坐标轴为 off
+    plt.title('Image')  # 图像题目
+    plt.show()
+
+
+def concrete_classes():
+    return [
+        'bughole'
+        ]
+
+
+def dataset_aliases_expanded():
+    dataset_aliases["concrete"] = ["concrete"]
+    return dataset_aliases
+
+
+def get_classes(dataset):
+    """Get class names of a dataset."""
+    alias2name = {}
+    for name, aliases in dataset_aliases_expanded().items():
+        for alias in aliases:
+            alias2name[alias] = name
+
+    if mmcv.is_str(dataset):
+        if dataset in alias2name:
+            labels = eval(alias2name[dataset] + '_classes()')
+        else:
+            raise ValueError('Unrecognized dataset: {}'.format(dataset))
+    else:
+        raise TypeError('dataset must a str, but got {}'.format(type(dataset)))
+    return labels
+
+
+def show_result(img, result, dataset='coco', score_thr=0.3, out_file=None):
+    img = mmcv.imread(img)
+    class_names = get_classes(dataset)
+    if isinstance(result, tuple):
+        bbox_result, segm_result = result
+    else:
+        bbox_result, segm_result = result, None
+    bboxes = np.vstack(bbox_result)
+    # draw segmentation masks
+    if segm_result is not None:
+        segms = mmcv.concat_list(segm_result)
+        inds = np.where(bboxes[:, -1] > score_thr)[0]
+        for i in inds:
+            color_mask = np.random.randint(
+                0, 256, (1, 3), dtype=np.uint8)
+            mask = maskUtils.decode(segms[i]).astype(np.bool)
+            img[mask] = img[mask] * 0.5 + color_mask * 0.5
+            # if i == 0:
+            #     print(img[mask].shape)
+            #     plot_image_debug(mask)
+    # draw bounding boxes
+    labels = [
+        np.full(bbox.shape[0], i, dtype=np.int32)
+        for i, bbox in enumerate(bbox_result)
+    ]
+    labels = np.concatenate(labels)
+    mmcv.imshow_det_bboxes(
+        img.copy(),
+        bboxes,
+        labels,
+        class_names=class_names,
+        score_thr=score_thr,
+        show=False,
+        out_file=out_file)
 
 
 def random_colors(N, bright=True, shuffle=True):
@@ -84,7 +158,7 @@ def show_mask_result(img, result, dataset='coco', score_thr=0.7, with_mask=True,
     return result_img
 
 
-def display_mask_result(img, result, dataset='coco', score_thr=0.7,
+def display_mask_result(img, result, dataset='coco', score_thr=0.5,
                         with_mask=True, with_bbox=True, display=True,
                         save=None):
     if isinstance(result, tuple):
@@ -100,23 +174,25 @@ def display_mask_result(img, result, dataset='coco', score_thr=0.7,
         raise TypeError(
             'dataset must be a valid dataset name or a sequence'
             ' of class names, not {}'.format(type(dataset)))
-
     img = io.imread(img)
     h, w, _ = img.shape
     img_show = img[:h, :w, :]
     bboxes = np.vstack(bbox_result)
-
+    # print(bboxes)
     inds = np.where(bboxes[:, -1] > score_thr)[0]
     colours = random_colors(len(inds))
-
     # draw segmentation masks
     if (segm_result is not None) and with_mask:
         colors = 255 * np.array(colours).astype(np.uint8)
         segms = mmcv.concat_list(segm_result)
-        for ix, i in enumerate(inds):
-            color_mask = colors[ix, :][None, :]
-            mask = maskUtils.decode(segms[i]).astype(np.bool)
-            img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
+        # print(inds)
+        if inds.shape[0] == 0:
+            print("*** No detected instances! ***")
+        else:
+            for ix, i in enumerate(inds):
+                color_mask = colors[ix, :][None, :]
+                mask = maskUtils.decode(segms[i]).astype(np.bool)
+                img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
 
     # draw bounding boxes
     labels = [
@@ -215,40 +291,41 @@ def initiate_detector(config, weights):
     return cfg, model
 
 
-def multi_detect_plot(cfg, model, path='images/*.jpg', save='images/detected'):
+def multi_detect_plot(cfg, model, dataset="coco", path='images/*.jpg',
+                      save='images/detected'):
     img_list = glob(path)
     for pic in img_list:
         f = mmcv.imread(pic)
         img_name = os.path.basename(pic)
         new_path = os.path.join(save, img_name)
         result = inference_detector(model, f, cfg, device='cuda:0')
-        show_mask_result(pic, result, score_thr=0.6, with_mask=True, display=False,
-                         save=new_path)
+        show_mask_result(pic, result, dataset=dataset, score_thr=0.6,
+                         with_mask=True, display=False, save=new_path)
 
 
-def single_detect_plot(cfg, model, image, save=None):
+def single_detect_plot(cfg, model, image, dataset="coco", score_thr=0.5, save=None):
     img = mmcv.imread(image)
     result = inference_detector(model, img, cfg)
-    display_mask_result(image, result, score_thr=0.6,
-                        with_mask=True, with_bbox=True,
-                        display=True, save=save)
+    display_mask_result(image, result, dataset=dataset, score_thr=score_thr,
+                        with_mask=True, with_bbox=True, display=True, save=save)
 
 
-def multi_detect(cfg, model, path='images/*.jpg', save='images/detected'):
+def multi_detect(cfg, model, dataset="coco", path='images/*.jpg',
+                 save='images/detected'):
     img_list = glob(path)
     for pic in img_list:
         f = mmcv.imread(pic)
         img_name = os.path.basename(pic)
         new_path = os.path.join(save, img_name)
         result = inference_detector(model, pic, cfg, device='cuda:0')
-        show_mask_result(f, result, score_thr=0.6, with_mask=True, display=False,
-                         save=new_path)
+        show_mask_result(f, result, dataset=dataset, score_thr=0.6,
+                         with_mask=True, display=False, save=new_path)
 
 
-def single_detect(cfg, model, image, save=None):
+def single_detect(cfg, model, image, dataset="coco", save=None):
     img = mmcv.imread(image)
     result = inference_detector(model, img, cfg)
-    show_mask_result(img, result, score_thr=0.6, with_mask=True, display=False,
+    show_mask_result(img, result, dataset=dataset, score_thr=0.6, with_mask=True, display=False,
                      save=save)
 
 

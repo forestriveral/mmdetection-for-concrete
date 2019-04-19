@@ -5,6 +5,7 @@
       <w>argmax</w>
       <w>asctime</w>
       <w>bboxes</w>
+      <w>bughole</w>
       <w>copypaste</w>
       <w>cuda</w>
       <w>cudnn</w>
@@ -23,6 +24,7 @@
       <w>imagenet</w>
       <w>imgs</w>
       <w>imread</w>
+      <w>imshow</w>
       <w>inds</w>
       <w>ious</w>
       <w>iscrowd</w>

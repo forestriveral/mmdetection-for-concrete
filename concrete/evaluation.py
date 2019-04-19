@@ -2,6 +2,7 @@
 import os
 import torch
 import mmcv
+import json
 import numpy as np
 import pandas as pd
 from mmcv.runner import load_checkpoint, parallel_test, obj_from_dict
@@ -17,6 +18,16 @@ from mmdet.models import build_detector, detectors
 
 
 out_root = "../detection"
+
+
+def concrete_classes():
+    return ['bughole']
+
+
+def read_result(file):
+    with open(file, "r+") as f:
+        r = json.load(f)
+        return r
 
 
 def coco_evaluate(config, checkpoint, output, gpus=1,
