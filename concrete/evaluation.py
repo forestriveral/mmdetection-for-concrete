@@ -1,47 +1,66 @@
 
 import os
+import sys
 import torch
 import mmcv
 import json
+import random
 import numpy as np
 import pandas as pd
 from mmcv.runner import load_checkpoint, parallel_test, obj_from_dict
 from mmcv.parallel import scatter, collate, MMDataParallel
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+import pycocotools.mask as maskUtils
 from mmdet import datasets
 from mmdet.core import results2json, eval_map
 from mmdet.core.evaluation.coco_utils import fast_eval_recall
 # from mmdet.core.evaluation.recall import eval_recalls
 from mmdet.datasets import build_dataloader
 from mmdet.models import build_detector, detectors
+# from concrete.datasets import CocoDataset
 
-
+ROOT_DIR = os.path.abspath("../")
+# Import concrete
+sys.path.append(ROOT_DIR)
 out_root = "../detection"
 
 
-def concrete_classes():
-    return ['bughole']
-
-
-def read_result(file):
+def read_json_result(file):
     with open(file, "r+") as f:
         r = json.load(f)
         return r
 
 
-def coco_evaluate(config, checkpoint, output, gpus=1,
-                  eval_type=['bbox', 'segm'],
-                  proc_per_gpu=2,
-                  show=False,
-                  name=None,
-                  params=None):
+def extract_det_cls(result):
+    id_list = []
+    for i in range(len(result)):
+        cls = result[i]["category_id"]
+        if cls not in id_list:
+            id_list.append(cls)
+    return id_list
 
+
+def modify_suffix(filename, suffix, remove=False):
+    if not remove:
+        if not filename.endswith(suffix):
+            (fpath, temp) = os.path.split(filename)
+            (fname, _) = os.path.splitext(temp)
+            filename = os.path.join(fpath, fname) + suffix
+    else:
+        (fpath, temp) = os.path.split(filename)
+        (fname, _) = os.path.splitext(temp)
+        filename = os.path.join(fpath, fname)
+    return filename
+
+
+def detection_ouput(config, checkpoint, filename, gpus=1,
+                    proc_per_gpu=2, show=False):
     path = checkpoint.split("/")[-2]
     if not os.path.exists(os.path.join(out_root, path)):
         os.makedirs(os.path.join(out_root, path))
-    out = os.path.join(out_root, path, output)
-    if out is not None and not out.endswith(('.pkl', '.pickle')):
+    target = os.path.join(out_root, path, filename)
+    if target is not None and not target.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
 
     cfg = mmcv.Config.fromfile(config)
@@ -79,38 +98,73 @@ def coco_evaluate(config, checkpoint, output, gpus=1,
             range(gpus),
             workers_per_gpu=proc_per_gpu)
 
-    if out:
-        print('\nwriting detected results to {}'.format(out))
+    model_name = dataset.config.work_dir.split("/")[-1]
+    print("{} detection datasets done!".format(model_name))
+
+    result_file = None
+    if filename and outputs:
+        print('\nWriting detected results to {}'.format(target))
         print("......")
-        mmcv.dump(outputs, out)
-        eval_types = eval_type
-        if eval_types:
-            print('Starting evaluate {}'.format(' and '.join(eval_types)))
-            if eval_types == ['proposal_fast']:
-                result_file = out
+        mmcv.dump(outputs, target)
+        print("Writing done to pkl file: {}".format(target))
+        if not isinstance(outputs[0], dict):
+            result_file = modify_suffix(target, ".json")
+            print('\nWriting formatted results to {}'.format(result_file))
+            print("......")
+            results2json(dataset, outputs, result_file)
+            print("Writing done to json file: {}".format(result_file))
+        else:
+            print("\nWriting formatted results to multiple json files......")
+            for i, name in enumerate(outputs[0]):
+                print('===> {}th result of {} ......'.format(i, name))
+                outputs_ = [out[name] for out in outputs]
+                result_file = modify_suffix(target, None, remove=True)
+                result_file = result_file + '_{}.json'.format(name)
+                results2json(dataset, outputs_, result_file)
+                print("Writing done to {}th files: {}".format(i, result_file))
+
+    return dataset, result_file, outputs
+
+
+def coco_evaluate(dataset, result_file, outputs=None,
+                  eval_type=None, name=None, params=None):
+    if outputs is None:
+        assert result_file, "Results file must be provided!"
+    assert os.path.exists(result_file), \
+        "Results file doesn't exist in {}".format(result_file)
+
+    data = None
+    eval_types = eval_type or ["bbox", "segm"]
+    print('Starting evaluate {} ......'.format(' and '.join(eval_types)))
+    if eval_types == ['proposal_fast']:
+        result_file = modify_suffix(result_file, ".pkl")
+        data = coco_eval(result_file, eval_types, dataset.coco,
+                         n=name, p=params)
+    else:
+        if outputs:
+            if not isinstance(outputs[0], dict):
                 data = coco_eval(result_file, eval_types, dataset.coco,
                                  n=name, p=params)
             else:
-                if not isinstance(outputs[0], dict):
-                    if out.endswith(('.pkl', '.pickle')):
-                        out = os.path.join("/".join(out.split("/")[:-1]),
-                                           output.split(".")[0])
-                    result_file = out + '.json'
-                    print('writing formatted results to {}'.format(result_file))
-                    print("......")
-                    results2json(dataset, outputs, result_file)
+                print("\nMultiple evaluation......")
+                for i, name in enumerate(outputs[0]):
+                    print('{}th ==> Evaluating on {}'.format(i, name))
+                    outputs_ = [out[name] for out in outputs]
+                    result_file = \
+                        result_file.split("/")[-1] + '_{}.json'.format(name)
+                    results2json(dataset, outputs_, result_file)
                     data = coco_eval(result_file, eval_types, dataset.coco,
                                      n=name, p=params)
-                else:
-                    print("======>>")
-                    for name in outputs[0]:
-                        print('\nEvaluating {}'.format(name))
-                        outputs_ = [out[name] for out in outputs]
-                        result_file = out + '_{}.json'.format(name)
-                        results2json(dataset, outputs_, result_file)
-                        data = coco_eval(result_file, eval_types, dataset.coco,
-                                         n=name, p=params)
-        return outputs, data
+    return data
+
+
+def detect_and_coco_eval(cfg, chp, filename, gpu_num=1, proc_per_gpu=2,
+                         show=False, eval_type=None, name=None, params=None):
+    outputs, target, dataset = detection_ouput(cfg, chp, filename, gpus=gpu_num,
+                                               proc_per_gpu=proc_per_gpu, show=show)
+
+    data = coco_evaluate(outputs, target, dataset, eval_type=eval_type,
+                         name=name, params=params)
 
 
 def single_test(model, data_loader, show=False):
@@ -192,41 +246,139 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
     return data
 
 
-def voc_eval(config, result_file, iou_thr=0.5):
-    cfg = mmcv.Config.fromfile(config)
-    test_dataset = mmcv.runner.obj_from_dict(cfg.data.test, datasets)
+def convert_segm(segm_info):
+    mask = maskUtils.decode(segm_info['counts']).astype(np.bool)
+    assert mask.shape == segm_info['size'], "Mismatching size of mask!"
+    return mask
 
-    det_results = mmcv.load(result_file)
-    gt_bboxes = []
-    gt_labels = []
-    gt_ignore = []
-    for i in range(len(test_dataset)):
-        ann = test_dataset.get_ann_info(i)
-        bboxes = ann['bboxes']
-        labels = ann['labels']
-        if 'bboxes_ignore' in ann:
-            ignore = np.concatenate([
-                np.zeros(bboxes.shape[0], dtype=np.bool),
-                np.ones(ann['bboxes_ignore'].shape[0], dtype=np.bool)
-            ])
-            gt_ignore.append(ignore)
-            bboxes = np.vstack([bboxes, ann['bboxes_ignore']])
-            labels = np.concatenate([labels, ann['labels_ignore']])
-        gt_bboxes.append(bboxes)
-        gt_labels.append(labels)
-    if not gt_ignore:
-        gt_ignore = gt_ignore
-    if hasattr(test_dataset, 'year') and test_dataset.year == 2007:
-        dataset_name = 'voc07'
+
+def build_voc_gts(dataset, image_ids, class_id, types):
+    gt = [{} for _ in range(len(class_id))]
+    gt_num = [0 for _ in range(len(class_id))]
+    # progress bar set up
+    prog_bar = mmcv.ProgressBar(len(image_ids))
+    # Load annotations gt information
+    for j, image_id in enumerate(image_ids):
+        _, image_meta, gt_class_id, gt_bbox, gt_mask = \
+            dataset.load_gts(image_id, mode="square")
+        for i, idx in enumerate(gt_class_id):
+            if idx in class_id:
+                ind = list(class_id).index(idx)
+                if image_id not in gt[ind].keys():
+                    gt[ind][image_id] = {'region': [], 'det': []}
+                gt[ind][image_id]['region'].append(
+                    gt_bbox[i, :] if types == "bbox" else gt_mask[:, :, i])
+                gt[ind][image_id]['det'].append(False)
+                gt_num[ind] += 1
+            else:
+                continue
+        prog_bar.update()
+    print("\nvoc groundtruth formatted done!")
+    return gt, gt_num
+
+
+def build_voc_dets(result_file, class_id, types):
+    assert os.path.exists(result_file), \
+        "Results file doesn't exist in {}".format(result_file)
+
+    det = [{"image_ids": [],
+            "confidence": [],
+            "region": []} for _ in range(len(class_id))]
+    det_num = [0 for _ in range(len(class_id))]
+
+    dets = read_json_result(result_file)
+    cls_index = extract_det_cls(dets)
+    for i, idx in enumerate(cls_index):
+        if idx in class_id:
+            ind = list(class_id).index(idx)
+            for j, d in dets:
+                det[ind]["image_ids"].append(d['image_id'] - 1)
+                det[ind]["confidence"].append(float(d["scores"]))
+                det[ind]["region"].append(
+                    d["bbox"] if types == "bbox" else convert_segm(d["segmentation"]))
+                det_num[ind] += 1
+        else:
+            continue
+    return det, det_num
+
+
+def voc_ap_prepare(dataset, image_ids=None, class_names=None,
+                   limit=None, types="bbox", results=None, save=False,
+                   verbose=False):
+    # Pick COCO images from the dataset
+    if image_ids:
+        image_ids = image_ids
+        limit = None
     else:
-        dataset_name = test_dataset.CLASSES
-    eval_map(
-        det_results,
-        gt_bboxes,
-        gt_labels,
-        gt_ignore=gt_ignore,
-        scale_ranges=None,
-        iou_thr=iou_thr,
-        dataset=dataset_name,
-        print_summary=True)
+        image_ids = dataset.image_ids
+
+    # Limit to a subset
+    if limit and limit != "all":
+        image_ids = random.sample(list(image_ids), limit)
+
+    assert isinstance(image_ids, (list, int, np.ndarray)), \
+        "Images list or selected image!"
+    if isinstance(image_ids, int):
+        print("Evaluate on Image ID {}".format(image_ids))
+        image_ids = [image_ids]
+
+    cls = dataset.class_names
+    if class_names is not None:
+        # class_id = [c["id"] for c in dataset.class_info if c["name"] in class_name]
+        class_id = [cls.index(c) for c in class_names]
+        assert len(class_id) == len(class_names), "No repeat class name!"
+    else:
+        class_id = dataset.class_ids[1:]
+
+    results_dir = os.path.join(out_root + dataset.config.work_dir.split("/")[-1])
+    print("Ready to formatting on {} ...".format(types))
+    # Formatting and save the groundtruth to file
+    gt, gt_num = build_voc_gts(dataset, image_ids, class_id, types)
+    # Formatting and save the detection to file
+    if not results:
+        results_name = results
+    else:
+        # default result file name
+        results_name = "eval_result.json"
+    results_file = os.path.join(results_dir, results_name)
+    det, det_num = build_voc_dets(results_file, class_id, types)
+
+    # Check whether the class info is right
+    assert len(det) == len(gt)
+    if verbose:
+        no_instance_class = [[], []]
+        for i, (x, y) in enumerate(zip(det, gt)):
+            if not x["region"]:
+                no_instance_class[0].append(cls[class_id[i]])
+            if not y:
+                no_instance_class[1].append(cls[class_id[i]])
+        if no_instance_class[0]:
+            print("No instances of following class are detected:\n",
+                  no_instance_class[0] if len(no_instance_class[0]) < 10 else len(no_instance_class[0]))
+            if len(no_instance_class[0]) < 10:
+                print("Detected classes: \n{}".format(set(cls[1:]) - set(no_instance_class[0])))
+        if no_instance_class[1]:
+            print("No groundtruth of following class are found\n",
+                  no_instance_class[1] if len(no_instance_class[1]) < 10 else len(no_instance_class[1]))
+            if len(no_instance_class[1]) < 10:
+                print("Groundtruth classes: \n{}".format(set(cls[1:]) - set(no_instance_class[1])))
+    if save:
+        gt_fname = results_dir + "/{}_gts.json".format(types)
+        if not os.path.exists(gt_fname):
+            mmcv.dump(gt, gt_fname)
+            print("\nGt file saved done in {}"
+                  "Gt instances number: {}\n".format(gt_fname, gt_num))
+        else:
+            print("....Gt file already exists in {}".format(gt_fname))
+
+        det_fname = results_dir + "/{}_dets.json".format(types)
+        if not os.path.exists(gt_fname):
+            mmcv.dump(det, det_fname)
+            print("\nDet file saved done in {}"
+                  "Gt instances number: {}\n".format(det_fname, det_num))
+        else:
+            print("....Det file already exists in {}".format(det_fname))
+
+    return gt, gt_num, det, det_num, class_id
+
 

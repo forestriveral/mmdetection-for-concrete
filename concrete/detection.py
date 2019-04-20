@@ -74,11 +74,14 @@ def show_result(img, result, dataset='coco', score_thr=0.3, out_file=None):
     if segm_result is not None:
         segms = mmcv.concat_list(segm_result)
         inds = np.where(bboxes[:, -1] > score_thr)[0]
-        for i in inds:
-            color_mask = np.random.randint(
-                0, 256, (1, 3), dtype=np.uint8)
-            mask = maskUtils.decode(segms[i]).astype(np.bool)
-            img[mask] = img[mask] * 0.5 + color_mask * 0.5
+        if inds.shape[0] == 0:
+            print("*** No detected instances! ***")
+        else:
+            for i in inds:
+                color_mask = np.random.randint(
+                    0, 256, (1, 3), dtype=np.uint8)
+                mask = maskUtils.decode(segms[i]).astype(np.bool)
+                img[mask] = img[mask] * 0.5 + color_mask * 0.5
             # if i == 0:
             #     print(img[mask].shape)
             #     plot_image_debug(mask)
@@ -139,11 +142,14 @@ def show_mask_result(img, result, dataset='coco', score_thr=0.7, with_mask=True,
         segms = mmcv.concat_list(segm_result)
         inds = np.where(bboxes[:, -1] > score_thr)[0]
         color_masks = 255 * np.array(random_colors(4)).astype(np.uint8)
-        for ix, i in enumerate(inds):
-            # color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
-            color_mask = color_masks[ix, :][None, :]
-            mask = maskUtils.decode(segms[i]).astype(np.bool)
-            img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
+        if inds.shape[0] == 0:
+            print("*** No detected instances! ***")
+        else:
+            for ix, i in enumerate(inds):
+                # color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
+                color_mask = color_masks[ix, :][None, :]
+                mask = maskUtils.decode(segms[i]).astype(np.bool)
+                img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
     result_img = mmcv.imshow_det_bboxes(
         img_show,
         bboxes,

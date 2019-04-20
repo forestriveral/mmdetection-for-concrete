@@ -4,11 +4,17 @@
       <w>arange</w>
       <w>argmax</w>
       <w>asctime</w>
+      <w>aucs</w>
+      <w>bbgt</w>
       <w>bboxes</w>
+      <w>bilinear</w>
       <w>bughole</w>
+      <w>cocoeval</w>
       <w>copypaste</w>
       <w>cuda</w>
       <w>cudnn</w>
+      <w>customdataset</w>
+      <w>cval</w>
       <w>dataloader</w>
       <w>dataset</w>
       <w>datasets</w>
@@ -17,18 +23,31 @@
       <w>dogball</w>
       <w>dset</w>
       <w>dsets</w>
+      <w>dtype</w>
       <w>evalm</w>
+      <w>exsit</w>
       <w>figsize</w>
+      <w>filepath</w>
+      <w>fliplr</w>
+      <w>flipud</w>
+      <w>fname</w>
+      <w>fpath</w>
+      <w>fprs</w>
       <w>gpus</w>
+      <w>grayscale</w>
+      <w>groundtruth</w>
       <w>idxs</w>
       <w>imagenet</w>
+      <w>imgaug</w>
       <w>imgs</w>
       <w>imread</w>
       <w>imshow</w>
+      <w>indicies</w>
       <w>inds</w>
       <w>ious</w>
       <w>iscrowd</w>
       <w>iters</w>
+      <w>jmax</w>
       <w>keypoints</w>
       <w>levelname</w>
       <w>linestyles</w>
@@ -38,25 +57,42 @@
       <w>mmcv</w>
       <w>mmdet</w>
       <w>modelzoo</w>
+      <w>mpre</w>
+      <w>mrcnn</w>
+      <w>mrec</w>
+      <w>multiscale</w>
       <w>nccl</w>
       <w>ndarray</w>
+      <w>oeval</w>
       <w>opencv</w>
+      <w>ouput</w>
+      <w>ovmax</w>
+      <w>polys</w>
+      <w>prec</w>
       <w>pretrained</w>
       <w>proc</w>
       <w>prog</w>
+      <w>pycocotools</w>
       <w>pytorch</w>
       <w>rcnn</w>
+      <w>resized</w>
+      <w>resizes</w>
       <w>resnet</w>
+      <w>rles</w>
+      <w>scikit</w>
       <w>segm</w>
       <w>segms</w>
       <w>skimage</w>
       <w>sklearn</w>
       <w>slurm</w>
+      <w>tempfilename</w>
       <w>tensorboard</w>
       <w>thrs</w>
+      <w>tprs</w>
       <w>xmin</w>
       <w>xnum</w>
       <w>xtick</w>
+      <w>xticks</w>
       <w>xywh</w>
       <w>xyxy</w>
       <w>yapf</w>

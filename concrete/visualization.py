@@ -4,7 +4,7 @@ import re
 import sys
 import math
 import string
-import pandas as pd
+# import pandas as pd
 import numpy as np
 import mmcv
 from mmdet import datasets
@@ -173,6 +173,116 @@ def read_log(log):
     return data
 
 
-def plot_pr_curve():
-    pass
+def plot_voc_curve(data, classes, threshold, curve=None,
+                   fs=8, save=False, name="curve"):
+    if curve and isinstance(curve, str):
+        curve = [curve]
+    else:
+        curve = curve or ["pr", "roc"]
+    if isinstance(classes, str):
+        classes = [classes]
+    for c in classes:
+        pre, rec, aps, fpr, tpr, aucs = parse_evaluation(data, c)
+        print_data_info(pre, rec, aps, fpr, tpr, aucs)
+        if "pr" in curve:
+            plot_evaluate_curve(aps, pre, rec, threshold=threshold, curve="pr",
+                                fs=fs, save=save, filename=name + "_pr")
+        if "roc" in curve:
+            plot_evaluate_curve(aucs, tpr, fpr, threshold=threshold, curve="roc",
+                                fs=fs, save=save, filename=name + "_roc")
+
+
+def parse_evaluation(cache, cla):
+    precision = cache["precisions"]
+    recall = cache["recalls"]
+    maps = cache["maps"]
+    fpr = cache["fprs"]
+    tpr = cache["tprs"]
+    aucs = cache["aucs"]
+
+    aps, pre, rec = maps[cla], precision[cla], recall[cla]
+    aucs, fpr, tpr = aucs[cla], fpr[cla], tpr[cla]
+
+    return pre, rec, aps, fpr, tpr, aucs
+
+
+def print_data_info(*args):
+    for v in args:
+        print(v.shape, type(v))
+
+
+def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
+                        fs=8, save=False, filename="curve"):
+    threshold = threshold or 0.5
+    # Plot the Precision-Recall curve
+    _, ax = plt.subplots(1, figsize=(fs, fs))
+
+    # Plot P-R curve
+    if curve == "pr":
+        if p.shape[0] == 1:
+            print("\nSingle {} line".format(curve))
+            if isinstance(threshold, list):
+                threshold = threshold[0]
+            ax.set_title("Precision-Recall Curve. AP@IoU {:.2f} = {:.3f}".format(threshold, ap[0]), font)
+            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=1.5)
+        else:
+            print("\nMultiple {} lines".format(curve))
+            assert isinstance(threshold, list), \
+                "Multiple thresholds should be provided!"
+            ax.set_title("Precision-Recall Curve", font)
+            for i in range(len(p)):
+                _ = ax.plot(r[i], p[i], ls=linestyles[i],
+                            c=colors[i], lw=1.5,
+                            label="AP={:.3f}(IoU={:.2f})".format(ap[i], threshold[i]))
+        ax.set_ylim(0, 1.05)
+        ax.set_xlim(0, 1.05)
+        plt.xlabel("Recall", font)
+        plt.ylabel("Precision", font)
+        plt.legend(loc="lower left", prop=font_legend,
+                   edgecolor='None', frameon=False,
+                   labelspacing=0.4)
+    # Plot ROC curve
+    if curve == "roc":
+        if p.shape[0] == 1:
+            print("\nSingle {} line".format(curve))
+            if isinstance(threshold, list):
+                threshold = threshold[0]
+            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=1.5,
+                        label="AUC={:.3f}(IoU={:.2f})".format(ap[0], threshold))
+        else:
+            print("\nMultiple {} lines".format(curve))
+            assert isinstance(threshold, list), \
+                "Multiple thresholds should be provided!"
+            for i in range(p.shape[0]):
+                _ = ax.plot(r[i], p[i], ls="-",
+                            c=colors[i], lw=1.5,
+                            label="AUC={:.3f}(IoU={:.2f})".format(ap[i], threshold[i]))
+
+        # Standard line
+        ax.plot([0, 1], [0, 1], ls='--', c='#778899', lw=1.5, label="Standard line")
+        # Set plot title
+        ax.set_title("ROC Curve", font)
+        ax.set_ylim(0, 1.0)
+        ax.set_xlim(0, 1.0)
+        plt.xlabel("False Positive Rate (FPR)", font)
+        plt.ylabel("True Positive Rate (TPR)", font)
+        plt.legend(loc="lower right", prop=font_legend,
+                   edgecolor='None', frameon=False,
+                   labelspacing=0.4)
+
+    plt.tick_params(labelsize=15)
+    labels = ax.get_xticklabels() + ax.get_yticklabels()
+    [label.set_fontname('Times New Roman') for label in labels]
+    # ax.set_xticks(np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]))
+    ax.set_xticklabels(('0', '0.2', '0.4', '0.6', '0.8', '1.0'))
+    ax.set_yticklabels(('', '0.2', '0.4', '0.6', '0.8', '1.0'))
+    rcParams['xtick.direction'] = 'out'
+    rcParams['ytick.direction'] = 'out'
+
+    if save:
+        plt.margins(0, 0)
+        plt.savefig('./{}.png'.format(filename), dpi=300, bbox_inches='tight')
+        print("Save done!")
+
+    plt.show()
 
