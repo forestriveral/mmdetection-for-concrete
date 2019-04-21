@@ -80,6 +80,7 @@ def show_result(img, result, dataset='coco', score_thr=0.3, out_file=None):
             for i in inds:
                 color_mask = np.random.randint(
                     0, 256, (1, 3), dtype=np.uint8)
+                print("=== {}: ".format(i), segms[i])
                 mask = maskUtils.decode(segms[i]).astype(np.bool)
                 img[mask] = img[mask] * 0.5 + color_mask * 0.5
             # if i == 0:
@@ -206,6 +207,7 @@ def display_mask_result(img, result, dataset='coco', score_thr=0.5,
         for i, bbox in enumerate(bbox_result)
         ]
     labels = np.concatenate(labels)
+
     plot_det_mask(
         img_show,
         bboxes,
@@ -228,7 +230,7 @@ def plot_det_mask(img,
                   score_thr=0.0,
                   figsize=(12, 12),
                   # bbox_color='green',
-                  text_color='white',
+                  text_color='black',
                   font_scale=18,
                   show=True,
                   title='',
@@ -244,6 +246,7 @@ def plot_det_mask(img,
 
     _, ax = plt.subplots(1, figsize=figsize)
     height, width = img.shape[:2]
+    # print("Image size: ({}, {})".format(height, width))
     ax.set_ylim(height + 10, -10)
     ax.set_xlim(-10, width + 10)
     ax.axis('off')
@@ -261,6 +264,7 @@ def plot_det_mask(img,
             # Skip this instance. Has no bbox. Likely lost in image cropping.
             continue
         bbox_int = bbox.astype(np.int32)
+        print(bbox_int)
         left_top = (bbox_int[0], bbox_int[1])
         w = bbox_int[2] - bbox_int[0]
         h = bbox_int[3] - bbox_int[1]
@@ -282,7 +286,7 @@ def plot_det_mask(img,
     if out_file is not None:
         plt.margins(0, 0)
         plt.savefig(out_file, dpi=100, bbox_inches='tight')
-        print("== Save done! ==")
+        print("== {} save done! ==".format(out_file))
     if show:
         plt.show()
 

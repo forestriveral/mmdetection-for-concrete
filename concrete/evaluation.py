@@ -13,23 +13,17 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import pycocotools.mask as maskUtils
 from mmdet import datasets
-from mmdet.core import results2json, eval_map
+from mmdet.core import results2json
 from mmdet.core.evaluation.coco_utils import fast_eval_recall
 # from mmdet.core.evaluation.recall import eval_recalls
 from mmdet.datasets import build_dataloader
 from mmdet.models import build_detector, detectors
-# from concrete.datasets import CocoDataset
+from concrete.utils import read_json_result, xywh2yxyx
 
 ROOT_DIR = os.path.abspath("../")
 # Import concrete
 sys.path.append(ROOT_DIR)
 out_root = "../detection"
-
-
-def read_json_result(file):
-    with open(file, "r+") as f:
-        r = json.load(f)
-        return r
 
 
 def extract_det_cls(result):
@@ -166,6 +160,8 @@ def detect_and_coco_eval(cfg, chp, filename, gpu_num=1, proc_per_gpu=2,
     data = coco_evaluate(outputs, target, dataset, eval_type=eval_type,
                          name=name, params=params)
 
+    return data, dataset, outputs, target
+
 
 def single_test(model, data_loader, show=False):
     model.eval()
@@ -205,7 +201,7 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
     for res_type in result_types:
         assert res_type in [
             'proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'
-        ]
+            ]
 
     if mmcv.is_str(coco):
         coco = COCO(coco)
@@ -246,9 +242,11 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
     return data
 
 
-def convert_segm(segm_info):
-    mask = maskUtils.decode(segm_info['counts']).astype(np.bool)
-    assert mask.shape == segm_info['size'], "Mismatching size of mask!"
+def convert_segm(segm):
+    segm["counts"] = segm["counts"].encode()
+    mask = maskUtils.decode(segm).astype(np.bool)
+    assert mask.shape == tuple(segm['size']),\
+        "Mismatching size of mask!"
     return mask
 
 
@@ -256,6 +254,7 @@ def build_voc_gts(dataset, image_ids, class_id, types):
     gt = [{} for _ in range(len(class_id))]
     gt_num = [0 for _ in range(len(class_id))]
     # progress bar set up
+    print("[Building voc style GTS file......]")
     prog_bar = mmcv.ProgressBar(len(image_ids))
     # Load annotations gt information
     for j, image_id in enumerate(image_ids):
@@ -273,7 +272,7 @@ def build_voc_gts(dataset, image_ids, class_id, types):
             else:
                 continue
         prog_bar.update()
-    print("\nvoc groundtruth formatted done!")
+    print("\nvoc groundtruth file building done!")
     return gt, gt_num
 
 
@@ -288,22 +287,27 @@ def build_voc_dets(result_file, class_id, types):
 
     dets = read_json_result(result_file)
     cls_index = extract_det_cls(dets)
+    print("\n[Building voc style DETS file......]")
+    prog_bar = mmcv.ProgressBar(len(cls_index) * len(dets))
     for i, idx in enumerate(cls_index):
         if idx in class_id:
             ind = list(class_id).index(idx)
-            for j, d in dets:
+            for d in dets:
                 det[ind]["image_ids"].append(d['image_id'] - 1)
-                det[ind]["confidence"].append(float(d["scores"]))
+                det[ind]["confidence"].append(float(d["score"]))
                 det[ind]["region"].append(
-                    d["bbox"] if types == "bbox" else convert_segm(d["segmentation"]))
+                    np.array(xywh2yxyx(d["bbox"]), dtype=np.int32)
+                    if types == "bbox" else convert_segm(d["segmentation"]))
                 det_num[ind] += 1
+                prog_bar.update()
         else:
             continue
+    print("\nvoc detection file building done!")
     return det, det_num
 
 
 def voc_ap_prepare(dataset, image_ids=None, class_names=None,
-                   limit=None, types="bbox", results=None, save=False,
+                   limit=None, types="bbox", fname=None, save=False,
                    verbose=False):
     # Pick COCO images from the dataset
     if image_ids:
@@ -330,54 +334,64 @@ def voc_ap_prepare(dataset, image_ids=None, class_names=None,
     else:
         class_id = dataset.class_ids[1:]
 
-    results_dir = os.path.join(out_root + dataset.config.work_dir.split("/")[-1])
-    print("Ready to formatting on {} ...".format(types))
+    gt, gt_num, det, det_num = None, None, None, None
+    results_dir = os.path.join(out_root, dataset.config.work_dir.split("/")[-1])
+    print("Ready to formatting on *{}* ...".format(types))
     # Formatting and save the groundtruth to file
-    gt, gt_num = build_voc_gts(dataset, image_ids, class_id, types)
-    # Formatting and save the detection to file
-    if not results:
-        results_name = results
+    gt_fname = results_dir + "/{}_gts.pkl".format(types)
+    if not os.path.exists(gt_fname):
+        gt, gt_num = build_voc_gts(dataset, image_ids, class_id, types)
+        if save:
+            mmcv.dump(gt, gt_fname)
+            print("Gt(gt numbers: {})file saved done in {}".format(gt_num, gt_fname))
     else:
-        # default result file name
-        results_name = "eval_result.json"
-    results_file = os.path.join(results_dir, results_name)
-    det, det_num = build_voc_dets(results_file, class_id, types)
+        print("[Gt file already exists in {}] "
+              "Please loading directly.....".format(gt_fname))
+        gt = mmcv.load(gt_fname)
+        print("[...Gt file loaded successfully!]")
+    # Formatting and save the detection to file
+    det_fname = results_dir + "/{}_dets.pkl".format(types)
+    if not os.path.exists(det_fname):
+        if fname:
+            results_name = fname
+        else:
+            # default result file name
+            results_name = "eval_result.json"
+        results_file = os.path.join(results_dir, results_name)
+        # print(results_dir)
+        # print(results_name)
+        det, det_num = build_voc_dets(results_file, class_id, types)
+        if save:
+            mmcv.dump(det, det_fname)
+            print("Det(det numbers: {})file saved done in {}".format(det_num, det_fname))
+    else:
+        print("[Det file already exists in {}] "
+              "Please loading directly.....".format(det_fname))
+        det = mmcv.load(det_fname)
+        print("[...Det file loaded successfully!]")
 
     # Check whether the class info is right
-    assert len(det) == len(gt)
-    if verbose:
-        no_instance_class = [[], []]
-        for i, (x, y) in enumerate(zip(det, gt)):
-            if not x["region"]:
-                no_instance_class[0].append(cls[class_id[i]])
-            if not y:
-                no_instance_class[1].append(cls[class_id[i]])
-        if no_instance_class[0]:
-            print("No instances of following class are detected:\n",
-                  no_instance_class[0] if len(no_instance_class[0]) < 10 else len(no_instance_class[0]))
-            if len(no_instance_class[0]) < 10:
-                print("Detected classes: \n{}".format(set(cls[1:]) - set(no_instance_class[0])))
-        if no_instance_class[1]:
-            print("No groundtruth of following class are found\n",
-                  no_instance_class[1] if len(no_instance_class[1]) < 10 else len(no_instance_class[1]))
-            if len(no_instance_class[1]) < 10:
-                print("Groundtruth classes: \n{}".format(set(cls[1:]) - set(no_instance_class[1])))
-    if save:
-        gt_fname = results_dir + "/{}_gts.json".format(types)
-        if not os.path.exists(gt_fname):
-            mmcv.dump(gt, gt_fname)
-            print("\nGt file saved done in {}"
-                  "Gt instances number: {}\n".format(gt_fname, gt_num))
-        else:
-            print("....Gt file already exists in {}".format(gt_fname))
-
-        det_fname = results_dir + "/{}_dets.json".format(types)
-        if not os.path.exists(gt_fname):
-            mmcv.dump(det, det_fname)
-            print("\nDet file saved done in {}"
-                  "Gt instances number: {}\n".format(det_fname, det_num))
-        else:
-            print("....Det file already exists in {}".format(det_fname))
+    if gt and det:
+        assert len(det) == len(gt)
+        if verbose:
+            no_instance_class = [[], []]
+            for i, (x, y) in enumerate(zip(det, gt)):
+                if not x["region"]:
+                    no_instance_class[0].append(cls[class_id[i]])
+                if not y:
+                    no_instance_class[1].append(cls[class_id[i]])
+            if no_instance_class[0]:
+                print("No instances of following class are detected:\n",
+                      no_instance_class[0] if len(no_instance_class[0]) < 10 else len(no_instance_class[0]))
+                if len(no_instance_class[0]) < 10:
+                    print("Detected classes: \n{}".format(set(cls[1:]) - set(no_instance_class[0])))
+            if no_instance_class[1]:
+                print("No groundtruth of following class are found\n",
+                      no_instance_class[1] if len(no_instance_class[1]) < 10 else len(no_instance_class[1]))
+                if len(no_instance_class[1]) < 10:
+                    print("Groundtruth classes: \n{}".format(set(cls[1:]) - set(no_instance_class[1])))
+    else:
+        print("NO GROUNDTRUTH AND DETECTION RESULTS!")
 
     return gt, gt_num, det, det_num, class_id
 

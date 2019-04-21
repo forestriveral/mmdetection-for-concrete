@@ -27,11 +27,11 @@ sys.path.append(ROOT_DIR)  # To find local version of the library
 linestyles = ['-', '--', ':', '-.', '--', '-']
 font = {'family': 'Times New Roman',
         'weight': 'bold',
-        'size': 20,
+        'size': 30,
         }
 font_legend = {'family': 'Times New Roman',
                'weight': 'bold',
-               'size': 15,
+               'size': 20,
                }
 colors = [(0.0, 1.0, 1.0), (1.0, 0.0, 1.0),
           (0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
@@ -224,7 +224,7 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
             if isinstance(threshold, list):
                 threshold = threshold[0]
             ax.set_title("Precision-Recall Curve. AP@IoU {:.2f} = {:.3f}".format(threshold, ap[0]), font)
-            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=1.5)
+            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=2.5)
         else:
             print("\nMultiple {} lines".format(curve))
             assert isinstance(threshold, list), \
@@ -232,7 +232,7 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
             ax.set_title("Precision-Recall Curve", font)
             for i in range(len(p)):
                 _ = ax.plot(r[i], p[i], ls=linestyles[i],
-                            c=colors[i], lw=1.5,
+                            c=colors[i], lw=2.5,
                             label="AP={:.3f}(IoU={:.2f})".format(ap[i], threshold[i]))
         ax.set_ylim(0, 1.05)
         ax.set_xlim(0, 1.05)
@@ -247,7 +247,7 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
             print("\nSingle {} line".format(curve))
             if isinstance(threshold, list):
                 threshold = threshold[0]
-            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=1.5,
+            _ = ax.plot(r[0], p[0], ls='-', c='#CD0000', lw=2.5,
                         label="AUC={:.3f}(IoU={:.2f})".format(ap[0], threshold))
         else:
             print("\nMultiple {} lines".format(curve))
@@ -255,11 +255,11 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
                 "Multiple thresholds should be provided!"
             for i in range(p.shape[0]):
                 _ = ax.plot(r[i], p[i], ls="-",
-                            c=colors[i], lw=1.5,
+                            c=colors[i], lw=2.5,
                             label="AUC={:.3f}(IoU={:.2f})".format(ap[i], threshold[i]))
 
         # Standard line
-        ax.plot([0, 1], [0, 1], ls='--', c='#778899', lw=1.5, label="Standard line")
+        ax.plot([0, 1], [0, 1], ls='--', c='#778899', lw=2.5, label="Standard line")
         # Set plot title
         ax.set_title("ROC Curve", font)
         ax.set_ylim(0, 1.0)

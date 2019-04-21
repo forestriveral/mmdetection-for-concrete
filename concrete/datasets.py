@@ -115,8 +115,7 @@ class DatasetLoader(object):
         self.sources = list(set([i['source'] for i in self.class_info]))
         self.source_class_ids = {}
         # Loop over datasets
-        print("\nPreparing dataset ......")
-        prog_bar = mmcv.ProgressBar(len(self.sources))
+        print("Preparing dataset ......")
         for source in self.sources:
             self.source_class_ids[source] = []
             # Find classes that belong to this dataset
@@ -124,9 +123,7 @@ class DatasetLoader(object):
                 # Include BG class in all datasets
                 if i == 0 or source == info['source']:
                     self.source_class_ids[source].append(i)
-
-            prog_bar.update()
-        print("\nDataset is ready now !")
+        print("[Dataset is ready now !]")
 
     def map_source_class_id(self, source_class_id):
         """Takes a source class ID and returns the int class ID assigned to it.
@@ -332,7 +329,7 @@ class CocoDataset(DatasetLoader):
         return m
 
     def load_gts(self, image_id, augmentation=None, use_mini_mask=False,
-                 mode="square", scale=0):
+                 mode="square", scale=0, keep_size=True):
         """Load and return ground truth data for an image (image, mask, bounding boxes).
 
         augment: (deprecated. Use augmentation instead). If true, apply random
@@ -359,13 +356,16 @@ class CocoDataset(DatasetLoader):
         image = self.load_image(image_id)
         mask, class_ids = self.load_mask(image_id)
         original_shape = image.shape
-        if isinstance(self.config.data[self.load_type].img_scale, tuple):
-            img_scale = self.config.data[self.load_type].img_scale
+        if not keep_size:
+            if isinstance(self.config.data[self.load_type].img_scale, tuple):
+                img_scale = self.config.data[self.load_type].img_scale
+            else:
+                img_scale = random.choice(
+                    self.config.data[self.load_type].img_scale)
+            assert int(img_scale[0]) >= int(img_scale[1]), \
+                "Max dim must be over min dim!"
         else:
-            img_scale = random.choice(
-                self.config.data[self.load_type].img_scale)
-        assert int(img_scale[0]) >= int(img_scale[1]), \
-            "Max dim must be over min dim!"
+            img_scale = original_shape
         image, window, scale, padding, crop = resize_image(
             image,
             min_dim=img_scale[1],

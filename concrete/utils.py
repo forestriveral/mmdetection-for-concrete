@@ -1,16 +1,13 @@
 
 import os
 import sys
-import random
+import pickle
 import copy
 import json
 import mmcv
-import colorsys
-import collections
-import pandas as pd
 import numpy as np
-from scipy import interpolate
-from interval import Interval
+# from scipy import interpolate
+# from interval import Interval
 from sklearn.metrics import auc
 
 ROOT_DIR = os.path.abspath("../")
@@ -19,37 +16,104 @@ sys.path.append(ROOT_DIR)
 out_root = "../detection"
 
 
-def voc_ap_compute(dataset, class_id, gts, dets, gt_num, load=False,
+def dump_pickle(obj, filepath):
+    assert filepath.endswith(".pkl"), \
+        "Filepath must be a pickle file path!"
+    with open(filepath, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def load_pickle(filepath):
+    assert filepath.endswith(".pkl"), \
+        "Filepath must be a pkl file path!"
+    with open(filepath, "rb") as f:
+        obj = pickle.load(f)
+        return obj
+
+
+def read_json_result(file):
+    assert file.endswith(".json"), \
+        "Filepath must be a json file path!"
+    with open(file, "r+") as f:
+        r = json.load(f)
+        return r
+
+
+def modify_gt_for_json(gt):
+    for j in range(len(gt)):
+        image_ids = list(gt[j].keys())
+        for i in image_ids:
+            for l, r in enumerate(gt[j][i]['region']):
+                gt[j][i]['region'][l] = list(r)
+    return gt
+
+
+def count_gt_num(gt):
+    gt_num = []
+    for j in range(len(gt)):
+        num = 0
+        image_ids = list(gt[j].keys())
+        for i in image_ids:
+            num += len(gt[j][i]['region'])
+        gt_num.append(num)
+    return gt_num
+
+
+def xyxy2xywh(bbox):
+    _bbox = bbox.tolist()
+    return [
+        _bbox[0],
+        _bbox[1],
+        _bbox[2] - _bbox[0] + 1,
+        _bbox[3] - _bbox[1] + 1,
+        ]
+
+
+def xywh2yxyx(bbox):
+    if not isinstance(bbox, list):
+        _bbox = bbox.tolist()
+    else:
+        _bbox = bbox
+    return [
+        _bbox[1],
+        _bbox[0],
+        _bbox[1] + _bbox[3] - 1,
+        _bbox[0] + _bbox[2] - 1,
+        ]
+
+
+def voc_ap_compute(dataset, class_id, gts, dets, load=False,
                    class_names=None, types="bbox", threshold=0.5,
                    debug=False):
-
+    # print("Ready to calculating voc ap details......")
     if load:
         # the root path to save results files
         results_dir = os.path.join(
             out_root + dataset.config.work_dir.split("/")[-1])
         # check whether results files exsit or not
-        gt_fname = results_dir + "/{}_gts.json".format(types)
+        gt_fname = results_dir + "/{}_gts.pkl".format(types)
         if os.path.exists(gt_fname):
             gts = mmcv.load(gt_fname)
             print("\nLoading gt file {}".format(gt_fname))
         else:
             print("Can't find gt file {}. Prepare gt file first!".format(gt_fname))
 
-        det_fname = results_dir + "/{}_dets.json".format(types)
+        det_fname = results_dir + "/{}_dets.pkl".format(types)
         if os.path.exists(det_fname):
             dets = mmcv.load(det_fname)
             print("\nLoading det file {}".format(det_fname))
         else:
             print("Can't find det file {}. Prepare det file first!".format(det_fname))
 
-    print("Ready to evaluate on {} ...".format(types))
+    print("Ready to evaluate on *{}* ...".format(types))
     # Copy gt file
     gt = copy.deepcopy(gts)
     # gt number in each class
-
+    gt_num = count_gt_num(gt)
     # Loop for every class need to compute ap
     evaluation = ["precisions", "recalls", "maps", "fprs", "tprs", "aucs"]
     targets = {}
+    overlaps, jmax = None, None
     for eva in evaluation:
         targets[eva] = {}
     # precisions, recalls, maps, fprs, tprs, aucs = {}, {}, {}, {}, {}, {}
@@ -177,8 +241,8 @@ def voc_ap_compute(dataset, class_id, gts, dets, gt_num, load=False,
                     prec[ix, :] = p
                     rec[ix, :] = r
 
-            print("\nFP:", fp.shape)
-            print("TP:", tp.shape)
+            print("\nTP:", tp)
+            print("FP:", fp.shape)
             print("FPR:", fpr.shape)
             print("TPR:", tpr.shape)
             print("AREA:", area, area.shape)
