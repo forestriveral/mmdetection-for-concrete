@@ -10,6 +10,7 @@
       <w>bilinear</w>
       <w>bughole</w>
       <w>cocoeval</w>
+      <w>comparsion</w>
       <w>copypaste</w>
       <w>cuda</w>
       <w>cudnn</w>
@@ -33,6 +34,7 @@
       <w>fname</w>
       <w>fpath</w>
       <w>fprs</w>
+      <w>frameon</w>
       <w>gpus</w>
       <w>grayscale</w>
       <w>groundtruth</w>
@@ -49,6 +51,7 @@
       <w>iters</w>
       <w>jmax</w>
       <w>keypoints</w>
+      <w>labelspacing</w>
       <w>levelname</w>
       <w>linestyles</w>
       <w>llist</w>
@@ -56,6 +59,7 @@
       <w>matplotlib</w>
       <w>mmcv</w>
       <w>mmdet</w>
+      <w>mmlab</w>
       <w>modelzoo</w>
       <w>mpre</w>
       <w>mrcnn</w>
@@ -78,6 +82,7 @@
       <w>resized</w>
       <w>resizes</w>
       <w>resnet</w>
+      <w>resnext</w>
       <w>rles</w>
       <w>scikit</w>
       <w>segm</w>
@@ -89,6 +94,7 @@
       <w>tensorboard</w>
       <w>thrs</w>
       <w>tprs</w>
+      <w>xlim</w>
       <w>xmin</w>
       <w>xnum</w>
       <w>xtick</w>

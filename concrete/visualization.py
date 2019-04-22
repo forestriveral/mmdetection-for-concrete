@@ -15,7 +15,8 @@ from mmdet.core import eval_map
 # from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib import patches,  lines, rcParams
-# from matplotlib.patches import Polygon
+from matplotlib.ticker import \
+    AutoMinorLocator, MultipleLocator, FuncFormatter
 
 
 # Root directory of the project
@@ -27,7 +28,7 @@ sys.path.append(ROOT_DIR)  # To find local version of the library
 linestyles = ['-', '--', ':', '-.', '--', '-']
 font = {'family': 'Times New Roman',
         'weight': 'bold',
-        'size': 30,
+        'size': 20,
         }
 font_legend = {'family': 'Times New Roman',
                'weight': 'bold',
@@ -38,36 +39,53 @@ colors = [(0.0, 1.0, 1.0), (1.0, 0.0, 1.0),
           (1.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
 
 
-def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
+def convert_to_str(seq):
+    label = []
+    for i in seq:
+        label.append(str(int(i)))
+    label = [""] + label
+    return tuple(label)
+
+
+def plot_training_curve(data, figsize=(8, 6), save=False, save_path=None,
                         plot="loss"):
-    plt.figure(figsize=figsize)
-    plt.subplots()
-    xnum = int(data['iters'] / data['interval']) * data['epochs']
-    x_axis = np.arange(1, 1 + xnum)
+    # _, ax = plt.subplots(1, figsize=figsize)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111)
+    iter_per = int(data['iters'] / data['interval'])
+    xlim = iter_per * data['epochs']
+    # val_num = int(data['iters'] / data['interval']) * np.arange(1, data['epochs'] + 1)
+    val_num = int(data['iters'] / data['interval']) * np.arange(1, 14 + 1)
+    # x_axis = np.arange(1, 1 + xnum)
+    x_axis = np.arange(1, 99)
     if plot == "loss":
         plt.plot(x_axis, np.array(data['loss']),
                  ls='-', c='#CD0000', lw=2, label="Training")
-        plt.plot(x_axis, np.array(data['val']), ls='--',
+        plt.plot(val_num, np.array(data['val']), ls='--',
                  c='#66CD00', lw=2, label="Validation")
-        plt.xlim(0, xnum)
+        plt.xlim(0, xlim)
         plt.xlabel('Epochs', font)
         plt.ylabel('Loss', font)
+        ax.xaxis.set_major_locator(MultipleLocator(iter_per * 2))
+        x_label = 2 * np.arange(0, (data['epochs'] / 2) + 1)
+        x_label = convert_to_str(x_label)
+        ax.set_xticklabels(x_label)
 
         plt.legend(loc="upper right", prop=font_legend,
                    edgecolor='None', frameon=False,
                    labelspacing=0.2)
     if plot == "lr":
-        plt.plot(x_axis, np.array(data['lr'])*10**3,
+        plt.plot(x_axis, np.array(data['lr']),
                  ls='-', c='#CD0000', lw=2)
         # plt.plot(data['epoch'], data['val_loss'], ls='--',
         #          c='#66CD00', lw=1.5, label="Validation")
-        plt.xlim(0, xnum)
+        plt.xlim(0, xlim)
         plt.xlabel('Epochs', font)
-        plt.ylabel('Learning rate(×10$^-3$)', font)
+        plt.ylabel('Learning rate', font)
     if plot == "memory":
         plt.plot(x_axis, np.array(data['memory']) * 10 ** -3,
                  ls='-', c='#CD0000', lw=2)
-        plt.xlim(0, xnum)
+        plt.xlim(0, xlim)
         plt.xlabel('Epochs', font)
         plt.ylabel('Using memory(×10$^3$)', font)
 
@@ -98,6 +116,7 @@ def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
     plt.tick_params(labelsize=15)
     labels = ax.get_xticklabels() + ax.get_yticklabels()
     [label.set_fontname('Times New Roman') for label in labels]
+    [label.set_fontsize(20) for label in labels]
     rcParams['xtick.direction'] = 'out'
     rcParams['ytick.direction'] = 'out'
     # ax.spines['top'].set_color('none')
@@ -108,7 +127,7 @@ def plot_training_curve(data, figsize=(16, 16), save=False, save_path=None,
         assert save_path, "Path to save must be provided!"
         plt.margins(0, 0)
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(" Save done! ")
+        print(" Save done![{}]".format(save_path))
     plt.show()
 
 
@@ -273,6 +292,7 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
     plt.tick_params(labelsize=15)
     labels = ax.get_xticklabels() + ax.get_yticklabels()
     [label.set_fontname('Times New Roman') for label in labels]
+    [label.set_fontsize(20) for label in labels]
     # ax.set_xticks(np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]))
     ax.set_xticklabels(('0', '0.2', '0.4', '0.6', '0.8', '1.0'))
     ax.set_yticklabels(('', '0.2', '0.4', '0.6', '0.8', '1.0'))

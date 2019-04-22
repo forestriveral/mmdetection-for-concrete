@@ -92,7 +92,7 @@ def detection_ouput(config, checkpoint, filename, gpus=1,
             range(gpus),
             workers_per_gpu=proc_per_gpu)
 
-    model_name = dataset.config.work_dir.split("/")[-1]
+    model_name = cfg.work_dir.split("/")[-1]
     print("{} detection datasets done!".format(model_name))
 
     result_file = None
@@ -129,7 +129,7 @@ def coco_evaluate(dataset, result_file, outputs=None,
 
     data = None
     eval_types = eval_type or ["bbox", "segm"]
-    print('Starting evaluate {} ......'.format(' and '.join(eval_types)))
+    print('\nStarting evaluate {} ......'.format(' and '.join(eval_types)))
     if eval_types == ['proposal_fast']:
         result_file = modify_suffix(result_file, ".pkl")
         data = coco_eval(result_file, eval_types, dataset.coco,
@@ -197,7 +197,7 @@ def eval_package(frames, save=None):
 
 
 def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
-              **kwargs):
+              no_sml=True, **kwargs):
     for res_type in result_types:
         assert res_type in [
             'proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'
@@ -234,6 +234,9 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
         for i in range(len(heads)):
             key = '{}_{}'.format(res_type, heads[i])
             val = float('{:.3f}'.format(cocoEval.stats[i]))
+            if no_sml:
+                if heads[i] in ['s', 'm', 'l']:
+                    continue
             if key not in data.keys():
                 data[key] = []
             data[key].append(val)

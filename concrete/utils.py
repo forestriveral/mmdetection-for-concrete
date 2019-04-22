@@ -241,7 +241,7 @@ def voc_ap_compute(dataset, class_id, gts, dets, load=False,
                     prec[ix, :] = p
                     rec[ix, :] = r
 
-            print("\nTP:", tp)
+            print("\nTP:", tp.shape)
             print("FP:", fp.shape)
             print("FPR:", fpr.shape)
             print("TPR:", tpr.shape)
