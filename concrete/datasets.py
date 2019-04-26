@@ -306,6 +306,7 @@ class CocoDataset(DatasetLoader):
         :return: binary mask (numpy 2D array)
         """
         segm = ann['segmentation']
+        # print(segm)
         if isinstance(segm, list):
             # polygon -- a single object might consist of multiple parts
             # we merge all parts into one mask rle concrete_mrcnn

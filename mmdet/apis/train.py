@@ -60,8 +60,15 @@ def train_detector(model,
 
 
 def _dist_train(model, dataset, cfg, validate=False):
-    # validation set loader
-    val_dataset = get_dataset(cfg.data.val)
+    val_dataloader = None
+    if cfg.log_config.val_interval:
+        # prepare validation set loader
+        val_dataset = get_dataset(cfg.data.val)
+        val_dataloader = build_dataloader(
+                                val_dataset,
+                                cfg.data.imgs_per_gpu,
+                                cfg.data.workers_per_gpu,
+                                dist=True)
     # prepare data loaders
     data_loaders = [
         build_dataloader(
@@ -69,12 +76,7 @@ def _dist_train(model, dataset, cfg, validate=False):
             cfg.data.imgs_per_gpu,
             cfg.data.workers_per_gpu,
             dist=True),
-        build_dataloader(
-            val_dataset,
-            cfg.data.imgs_per_gpu,
-            cfg.data.workers_per_gpu,
-            dist=True)
-    ]
+        ]
     # put model on gpus
     model = MMDistributedDataParallel(model.cuda())
     # build runner
@@ -101,8 +103,7 @@ def _dist_train(model, dataset, cfg, validate=False):
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run(data_loaders, cfg.workflow, cfg.total_epochs,
-               val_interval=cfg.val_interval, log_config=cfg.log_config,
-               val_dataloader=data_loaders[1])
+               log_config=cfg.log_config, val_dataloader=val_dataloader)
 
 
 def _non_dist_train(model, dataset, cfg, validate=False):

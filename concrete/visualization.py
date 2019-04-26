@@ -4,25 +4,14 @@ import re
 import sys
 import math
 import string
-# import pandas as pd
 import numpy as np
-import mmcv
-from mmdet import datasets
-from mmdet.core import eval_map
-# from scipy import interpolate
-# from interval import Interval
-# from sklearn.metrics import auc
-# from skimage.measure import find_contours
 import matplotlib.pyplot as plt
-from matplotlib import patches,  lines, rcParams
-from matplotlib.ticker import \
-    AutoMinorLocator, MultipleLocator, FuncFormatter
+from matplotlib import rcParams
+from matplotlib.ticker import MultipleLocator
 
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../")
-
-# Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
 
 linestyles = ['-', '--', ':', '-.', '--', '-']
@@ -37,6 +26,9 @@ font_legend = {'family': 'Times New Roman',
 colors = [(0.0, 1.0, 1.0), (1.0, 0.0, 1.0),
           (0.0, 0.0, 1.0), (0.0, 1.0, 0.0),
           (1.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
+
+colours = ['#CD0000', '#66CD00', '#778899', '#9400D3',
+           '#0000FF', '#2E8B57']
 
 
 def convert_to_str(seq):
@@ -54,14 +46,11 @@ def plot_training_curve(data, figsize=(8, 6), save=False, save_path=None,
     ax = fig.add_subplot(111)
     iter_per = int(data['iters'] / data['interval'])
     xlim = iter_per * data['epochs']
-    # val_num = int(data['iters'] / data['interval']) * np.arange(1, data['epochs'] + 1)
-    val_num = int(data['iters'] / data['interval']) * np.arange(1, 14 + 1)
-    # x_axis = np.arange(1, 1 + xnum)
-    x_axis = np.arange(1, 99)
+    x_axis = np.arange(1, 1 + xlim)
     if plot == "loss":
         plt.plot(x_axis, np.array(data['loss']),
                  ls='-', c='#CD0000', lw=2, label="Training")
-        plt.plot(val_num, np.array(data['val']), ls='--',
+        plt.plot(x_axis, np.array(data['val']), ls='--',
                  c='#66CD00', lw=2, label="Validation")
         plt.xlim(0, xlim)
         plt.xlabel('Epochs', font)
@@ -125,7 +114,7 @@ def plot_training_curve(data, figsize=(8, 6), save=False, save_path=None,
 
     if save:
         assert save_path, "Path to save must be provided!"
-        plt.margins(0, 0)
+        # plt.margins(0, 0)
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(" Save done![{}]".format(save_path))
     plt.show()
@@ -193,7 +182,7 @@ def read_log(log):
 
 
 def plot_voc_curve(data, classes, threshold, curve=None,
-                   fs=8, save=False, name="curve"):
+                   fs=8, save=False, name="curve", root="."):
     if curve and isinstance(curve, str):
         curve = [curve]
     else:
@@ -205,10 +194,12 @@ def plot_voc_curve(data, classes, threshold, curve=None,
         print_data_info(pre, rec, aps, fpr, tpr, aucs)
         if "pr" in curve:
             plot_evaluate_curve(aps, pre, rec, threshold=threshold, curve="pr",
-                                fs=fs, save=save, filename=name + "_pr")
+                                fs=fs, save=save, filename=name + "_pr",
+                                root_dir=root)
         if "roc" in curve:
             plot_evaluate_curve(aucs, tpr, fpr, threshold=threshold, curve="roc",
-                                fs=fs, save=save, filename=name + "_roc")
+                                fs=fs, save=save, filename=name + "_roc",
+                                root_dir=root)
 
 
 def parse_evaluation(cache, cla):
@@ -231,7 +222,7 @@ def print_data_info(*args):
 
 
 def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
-                        fs=8, save=False, filename="curve"):
+                        fs=8, save=False, filename="curve", root_dir="."):
     threshold = threshold or 0.5
     # Plot the Precision-Recall curve
     _, ax = plt.subplots(1, figsize=(fs, fs))
@@ -301,8 +292,9 @@ def plot_evaluate_curve(ap, p, r, threshold=None, curve="pr",
 
     if save:
         plt.margins(0, 0)
-        plt.savefig('./{}.png'.format(filename), dpi=300, bbox_inches='tight')
-        print("Save done!")
+        fname = os.path.join(root_dir, '{}.png'.format(filename))
+        plt.savefig(fname, dpi=300, bbox_inches='tight')
+        print("Save done![{}]".format(fname))
 
     plt.show()
 

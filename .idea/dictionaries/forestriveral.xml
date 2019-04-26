@@ -38,6 +38,7 @@
       <w>gpus</w>
       <w>grayscale</w>
       <w>groundtruth</w>
+      <w>huawei</w>
       <w>idxs</w>
       <w>imagenet</w>
       <w>imgaug</w>
@@ -71,6 +72,7 @@
       <w>opencv</w>
       <w>ouput</w>
       <w>ovmax</w>
+      <w>pdframe</w>
       <w>polys</w>
       <w>prec</w>
       <w>pretrained</w>

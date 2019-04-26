@@ -18,7 +18,7 @@ from mmdet.core.evaluation.coco_utils import fast_eval_recall
 # from mmdet.core.evaluation.recall import eval_recalls
 from mmdet.datasets import build_dataloader
 from mmdet.models import build_detector, detectors
-from concrete.utils import read_json_result, xywh2yxyx
+from concrete.utils import read_json_result, xywh2yxyx, pd_to_json
 
 ROOT_DIR = os.path.abspath("../")
 # Import concrete
@@ -154,9 +154,9 @@ def coco_evaluate(dataset, result_file, outputs=None,
 
 def detect_and_coco_eval(cfg, chp, filename, gpu_num=1, proc_per_gpu=2,
                          show=False, eval_type=None, name=None, params=None):
+    # pklname = os.path.join(out_root, os.path.join(cfg.work_dirs.split("/")[-1], filename))
     outputs, target, dataset = detection_ouput(cfg, chp, filename, gpus=gpu_num,
                                                proc_per_gpu=proc_per_gpu, show=show)
-
     data = coco_evaluate(outputs, target, dataset, eval_type=eval_type,
                          name=name, params=params)
 
@@ -242,6 +242,7 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000),
             data[key].append(val)
         # print(data)
     data = pd.DataFrame(data)
+    pd_to_json(data)
     return data
 
 

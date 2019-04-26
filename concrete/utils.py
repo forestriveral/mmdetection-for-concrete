@@ -16,6 +16,18 @@ sys.path.append(ROOT_DIR)
 out_root = "../detection"
 
 
+def pd_to_json(data):
+    path = os.path.join(out_root, data["name"][0]) + "/coco_val.csv"
+    data.to_csv(path, index=0)
+    print("pdframe data written done![{}]".format(path))
+
+
+def voc_to_pkl(target, path):
+    with open(path, "wb") as f:
+        pickle.dump(target, f)
+        print("voc formatted file save done![{}]".format(path))
+
+
 def dump_pickle(obj, filepath):
     assert filepath.endswith(".pkl"), \
         "Filepath must be a pickle file path!"
@@ -268,6 +280,10 @@ def voc_ap_compute(dataset, class_id, gts, dets, load=False,
         for (x, y) in zip(evaluation, [prec, rec, ap, fpr, tpr, area]):
             targets[x][class_names[i]] = y
 
+    save_dir = os.path.join(out_root, dataset.config.work_dir.split("/")[-1])
+    save_name = "_".join(["voc", types, "_".join([str(t) for t in threshold])])
+    fpath = os.path.join(save_dir, save_name + ".pkl")
+    voc_to_pkl(targets, fpath)
     # Clean the class that has no instances detected
     # detection = clean_duplicates(detection)
     # Zipped dict storing recalls, precisions, maps, fprs, tprs, aucs
