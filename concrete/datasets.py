@@ -22,7 +22,9 @@ ROOT_DIR = os.path.abspath("../data/coco")
 sys.path.append(ROOT_DIR)  # To find local version of the library
 
 
-def load_dataset(cfg, load_type):
+def load_dataset(cfg, load_type=None):
+    if load_type is None:
+        load_type = "test"
     dataset = CocoDataset()
     concrete = dataset.load_concrete(cfg, load_type, return_coco=True)
     dataset.prepare()

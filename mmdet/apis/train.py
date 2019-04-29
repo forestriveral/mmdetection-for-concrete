@@ -77,6 +77,14 @@ def _dist_train(model, dataset, cfg, validate=False):
             cfg.data.workers_per_gpu,
             dist=True),
         ]
+    if len(cfg.workflow) >= 2 and cfg.workflow[1][0] == "val":
+        dataset_val = get_dataset(cfg.data.val)
+        data_loaders.append(
+            build_dataloader(
+                dataset_val,
+                cfg.data.imgs_per_gpu,
+                cfg.data.workers_per_gpu,
+                dist=True))
     # put model on gpus
     model = MMDistributedDataParallel(model.cuda())
     # build runner

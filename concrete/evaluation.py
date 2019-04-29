@@ -152,8 +152,10 @@ def coco_evaluate(dataset, result_file, outputs=None,
     return data
 
 
-def detect_and_coco_eval(cfg, chp, filename, gpu_num=1, proc_per_gpu=2,
+def detect_and_coco_eval(cfg, chp, filename=None, gpu_num=1, proc_per_gpu=2,
                          show=False, eval_type=None, name=None, params=None):
+    if not filename:
+        filename = "eval_result.pkl"
     # pklname = os.path.join(out_root, os.path.join(cfg.work_dirs.split("/")[-1], filename))
     outputs, target, dataset = detection_ouput(cfg, chp, filename, gpus=gpu_num,
                                                proc_per_gpu=proc_per_gpu, show=show)

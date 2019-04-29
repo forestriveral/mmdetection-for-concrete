@@ -5,6 +5,7 @@ import pickle
 import copy
 import json
 import mmcv
+import glob
 import numpy as np
 # from scipy import interpolate
 # from interval import Interval
@@ -14,6 +15,48 @@ ROOT_DIR = os.path.abspath("../")
 # Import concrete
 sys.path.append(ROOT_DIR)
 out_root = "../detection"
+work_root = "../work_dirs"
+
+
+def autoload_model_info(model):
+    det_root_dir = os.path.join(out_root, model)
+    work_root_dir = os.path.join(work_root, model)
+    checkpoint_path = find_latest_model(work_root_dir)
+    log_path = find_latest_log(work_root_dir)
+
+    return det_root_dir, checkpoint_path, log_path
+
+
+def find_latest_model(path):
+    file_list = os.listdir(path)
+    if "latest.pth" in file_list:
+        weight_path = os.path.join(path, "latest.pth")
+        return weight_path
+    else:
+        path = os.path.join(path, "*_*.pth")
+        weights = glob.glob(path)
+        latest_epoch = 1
+        latest_weight = weights[0]
+        for w in weights:
+            epoch = w.split("/")[-1].split(".")[0].split('_')[-1]
+            # print(epoch)
+            if int(epoch) > latest_epoch:
+                latest_weight = w
+        return latest_weight
+
+
+def find_latest_log(path):
+    path = os.path.join(path, "*.log")
+    logs = sorted(glob.glob(path))
+    if len(logs) > 0:
+        return logs[-1]
+    else:
+        raise FileExistsError("No log files exist!")
+
+
+def load_images(path):
+    f = sorted(os.listdir(path))[:62]
+    return f
 
 
 def pd_to_json(data):

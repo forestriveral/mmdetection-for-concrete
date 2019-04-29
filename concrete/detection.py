@@ -8,13 +8,12 @@ import numpy as np
 from skimage import io
 from glob import glob
 import matplotlib.pyplot as plt
-from matplotlib import patches, lines, rcParams
+from matplotlib import patches, transforms
 from mmcv.runner import load_checkpoint
 from mmdet.models import build_detector
 from mmdet.apis import inference_detector
 import pycocotools.mask as maskUtils
-from mmdet.core import tensor2imgs
-from mmdet.core.evaluation import coco_classes, dataset_aliases
+from mmdet.core.evaluation import dataset_aliases
 
 
 def opencv2skimage(src):
@@ -34,21 +33,29 @@ def plot_image_debug(img):
     plt.show()
 
 
-def concrete_classes():
+def bughole_classes():
     return [
         'bughole'
         ]
 
 
-def dataset_aliases_expanded():
-    dataset_aliases["concrete"] = ["concrete"]
-    return dataset_aliases
+def crack_classes():
+    return [
+        'crack'
+        ]
+
+
+def dataset_aliases_expanded(aliases, dataset):
+    if dataset in ["bughole", "crack"]:
+        aliases[dataset] = [dataset]
+    return aliases
 
 
 def get_classes(dataset):
     """Get class names of a dataset."""
     alias2name = {}
-    for name, aliases in dataset_aliases_expanded().items():
+    for name, aliases in dataset_aliases_expanded(
+            dataset_aliases, dataset).items():
         for alias in aliases:
             alias2name[alias] = name
 
@@ -181,7 +188,9 @@ def display_mask_result(img, result, dataset='coco', score_thr=0.5,
         raise TypeError(
             'dataset must be a valid dataset name or a sequence'
             ' of class names, not {}'.format(type(dataset)))
-    img = io.imread(img)
+    # img = io.imread(img)
+    img = cv2.imread(img)
+    img = img[:, :, ::-1]
     h, w, _ = img.shape
     img_show = img[:h, :w, :]
     bboxes = np.vstack(bbox_result)
@@ -232,7 +241,7 @@ def plot_det_mask(img,
                   # bbox_color='green',
                   text_color='black',
                   font_scale=18,
-                  show=True,
+                  show=False,
                   title='',
                   out_file=None):
 
@@ -264,7 +273,6 @@ def plot_det_mask(img,
             # Skip this instance. Has no bbox. Likely lost in image cropping.
             continue
         bbox_int = bbox.astype(np.int32)
-        print(bbox_int)
         left_top = (bbox_int[0], bbox_int[1])
         w = bbox_int[2] - bbox_int[0]
         h = bbox_int[3] - bbox_int[1]
@@ -274,21 +282,23 @@ def plot_det_mask(img,
                                   edgecolor=colors[i], facecolor='none')
             ax.add_patch(p)
 
-        if with_caption:
-            label_text = class_names[
-                label] if class_names is not None else 'cls {}'.format(label)
-            if len(bbox) > 4:
-                label_text += '|{:.02f}'.format(bbox[-1])
-            ax.text(bbox_int[0], bbox_int[1] - 5, label_text,
-                    color=text_color, size=font_scale, backgroundcolor="None")
+            if with_caption:
+                label_text = class_names[
+                    label] if class_names is not None else 'cls {}'.format(label)
+                if len(bbox) > 4:
+                    # label_text += '|{:.02f}'.format(bbox[-1])
+                    label_text = '{:.02f}'.format(bbox[-1])
+                ax.text(bbox_int[0], bbox_int[1] - 5, label_text,
+                        color=text_color, size=font_scale, backgroundcolor="None")
 
     ax.imshow(img)
     if out_file is not None:
-        plt.margins(0, 0)
-        plt.savefig(out_file, dpi=100, bbox_inches='tight')
-        print("== {} save done! ==".format(out_file))
-    if show:
-        plt.show()
+        # plt.margins(0, 0)
+        plt.savefig(out_file, dpi=300, bbox_inches='tight')
+        # print("== {} save done! ==".format(out_file))
+    if not show:
+        plt.clf()
+        plt.close()
 
 
 def initiate_detector(config, weights):
@@ -301,19 +311,23 @@ def initiate_detector(config, weights):
     return cfg, model
 
 
-def multi_detect_plot(cfg, model, dataset="coco", path='images/*.jpg',
-                      save='images/detected'):
+def multi_detect_plot(cfg, model, dataset="coco", score=0.5,
+                      path='images/*.jpg', save='images/detected'):
     img_list = glob(path)
+    pro_bar = mmcv.ProgressBar(len(img_list))
     for pic in img_list:
         f = mmcv.imread(pic)
         img_name = os.path.basename(pic)
         new_path = os.path.join(save, img_name)
         result = inference_detector(model, f, cfg, device='cuda:0')
-        show_mask_result(pic, result, dataset=dataset, score_thr=0.6,
-                         with_mask=True, display=False, save=new_path)
+        display_mask_result(pic, result, dataset=dataset, score_thr=score,
+                            with_mask=False, with_bbox=True, display=False,
+                            save=new_path)
+        pro_bar.update()
 
 
-def single_detect_plot(cfg, model, image, dataset="coco", score_thr=0.5, save=None):
+def single_detect_plot(cfg, model, image, dataset="coco", score_thr=0.5,
+                       save=None):
     img = mmcv.imread(image)
     result = inference_detector(model, img, cfg)
     display_mask_result(image, result, dataset=dataset, score_thr=score_thr,
@@ -335,8 +349,8 @@ def multi_detect(cfg, model, dataset="coco", path='images/*.jpg',
 def single_detect(cfg, model, image, dataset="coco", save=None):
     img = mmcv.imread(image)
     result = inference_detector(model, img, cfg)
-    show_mask_result(img, result, dataset=dataset, score_thr=0.6, with_mask=True, display=False,
-                     save=save)
+    show_mask_result(img, result, dataset=dataset, score_thr=0.6,
+                     with_mask=False, display=True, save=save)
 
 
 config_path = '../configs/cascade_mask_rcnn_r50_fpn_1x.py'

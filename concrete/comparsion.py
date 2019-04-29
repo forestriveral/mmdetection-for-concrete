@@ -52,7 +52,13 @@ def read_logs(logs, obj="loss", save=None):
 def read_coco_eval(evals, save=None):
     cocos = []
     for e in evals:
-        coco = pd.read_csv(e)
+        f = os.path.join(e, "coco_val.csv")
+        # print(f)
+        coco = pd.read_csv(f)
+        if coco.columns.size != 8:
+            added_heads = ['segm_mAP', 'segm_50', 'segm_75']
+            for h in added_heads:
+                coco[h] = None
         cocos.append(coco)
     result = pd.concat(cocos)
     if save:
