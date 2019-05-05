@@ -49,9 +49,10 @@ def read_logs(logs, obj="loss", save=None):
     plt.show()
 
 
-def read_coco_eval(evals, save=None):
+def read_coco_eval(name, save=None):
     cocos = []
-    for e in evals:
+    for e in name:
+        e = os.path.join("../detection", e)
         f = os.path.join(e, "coco_val.csv")
         # print(f)
         coco = pd.read_csv(f)
