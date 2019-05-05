@@ -1,0 +1,22 @@
+{
+    "Vehicle type": {
+        "microbus": 1,
+        "sedan": 2,
+        "minibus": 3,
+        "motor bus": 4,
+        "van": 5,
+        "container car": 6
+    },
+    "weather condition": {
+        "sunny": 1,
+        "rainy": 2,
+        "snow": 3,
+        "ice": 4
+    },
+    "status": {
+        "rollover": 1,
+        "ratating": 2,
+        "sideslip": 3,
+        "safty": 4
+    }
+}
