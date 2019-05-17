@@ -23,11 +23,11 @@ model = dict(
         feat_channels=256,
         anchor_scales=[8],
         anchor_ratios=[0.1, 1.0, 10.0],
-        #anchor_ratios=[0.2, 1.0, 5.0],
-        #anchor_ratios=[0.25, 1.0, 4.0],  # Controlling factors for comparsion
-        #anchor_ratios=[0.33, 1.0, 3.0],
-        #anchor_ratios=[0.25, 0.33, 3.0, 4.0],
-        #anchor_ratios=[0.1, 0.2, 0.33, 3.0, 5.0, 10.0],
+        # anchor_ratios=[0.2, 1.0, 5.0],
+        # anchor_ratios=[0.25, 1.0, 4.0],  # Controlling factors for comparsion
+        # anchor_ratios=[0.33, 1.0, 3.0],
+        # anchor_ratios=[0.25, 0.33, 3.0, 4.0],
+        # anchor_ratios=[0.1, 0.2, 0.33, 3.0, 5.0, 10.0],
         anchor_strides=[4, 8, 16, 32, 64],
         target_means=[.0, .0, .0, .0],
         target_stds=[1.0, 1.0, 1.0, 1.0],
@@ -160,8 +160,8 @@ test_cfg = dict(
         min_bbox_size=0),
     rcnn=dict(
         score_thr=0.05,
-        nms=dict(type='nms', iou_thr=0.5),  # Controlling factors for comparsion
-        # nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05),
+        # nms=dict(type='nms', iou_thr=0.5),  # Controlling factors for comparsion
+        nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05),
         max_per_img=100,
         mask_thr_binary=0.5),
     keep_all_stages=False)
